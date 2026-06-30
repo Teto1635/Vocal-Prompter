@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#16110E" />
+<title>Klon Stüdyo</title>
+<link rel="manifest" href="./manifest.json" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --void:#16110E;      /* deep warm booth black */
+    --booth:#211915;     /* panel surface */
+    --booth-2:#2C211B;   /* raised card */
+    --paper:#F2E9DC;     /* lit script text */
+    --lamp:#E8A04B;      /* warm reading-lamp amber (primary) */
+    --lamp-soft:#F2C078; /* lighter amber glow */
+    --signal:#7FC8A9;    /* captured / good-take sage */
+    --rec:#E5574E;       /* live REC red */
+    --muted:#9A8B7E;     /* secondary warm gray */
+    --line:rgba(242,233,220,0.09);
+    --line-2:rgba(242,233,220,0.16);
+    --read-size:38px;
+    --read-line:1.62;
+    --read-track:0.2px;
+    --safe-t:env(safe-area-inset-top,0px);
+    --safe-b:env(safe-area-inset-bottom,0px);
+    font-family:'Space Grotesk',system-ui,-apple-system,sans-serif;
+  }
+  /* light booth (lamp on) */
+  body.lamp-on{
+    --void:#F4ECDF;
+    --booth:#EDE2D1;
+    --booth-2:#E4D6C1;
+    --paper:#2A2019;
+    --muted:#7C6A59;
+    --line:rgba(42,32,25,0.10);
+    --line-2:rgba(42,32,25,0.18);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:var(--void);color:var(--paper);
+    overflow:hidden;overscroll-behavior:none;
+    transition:background .4s ease,color .4s ease;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit;color:inherit;border:none;background:none;cursor:pointer;}
+  .app{display:flex;flex-direction:column;height:100dvh;}
+
+  /* ---------- TOP BAR ---------- */
+  .topbar{
+    flex:0 0 auto;display:flex;align-items:center;gap:10px;
+    padding:calc(var(--safe-t) + 12px) 14px 12px;
+  }
+  .iconbtn{
+    width:42px;height:42px;border-radius:13px;display:grid;place-items:center;
+    background:var(--booth);border:1px solid var(--line);font-size:18px;
+    transition:background .15s,border-color .15s,transform .1s;
+  }
+  .iconbtn:active{transform:scale(.93);}
+  .topmeta{flex:1 1 auto;min-width:0;line-height:1.15;}
+  .topmeta .pno{
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+    font-weight:600;
+  }
+  .topmeta .tone{
+    font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--lamp);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;
+  }
+  .rec-chip{
+    display:flex;align-items:center;gap:7px;padding:0 13px;height:42px;border-radius:13px;
+    background:var(--booth);border:1px solid var(--line);font-family:'Space Mono',monospace;
+    font-size:14px;font-weight:700;letter-spacing:.02em;
+  }
+  .rec-chip .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);}
+  .rec-chip.live{border-color:rgba(229,87,78,.5);color:var(--rec);}
+  .rec-chip.live .dot{background:var(--rec);animation:pulse 1.1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+  .lang-toggle{
+    display:flex;background:var(--booth);border:1px solid var(--line);border-radius:13px;
+    overflow:hidden;height:42px;font-weight:600;font-size:13px;
+  }
+  .lang-toggle button{padding:0 13px;color:var(--muted);letter-spacing:.04em;transition:color .15s;}
+  .lang-toggle button.on{color:var(--void);background:var(--lamp);}
+
+  /* ---------- STAGE (lamp pool) ---------- */
+  .stage{position:relative;flex:1 1 auto;overflow:hidden;}
+  .scroller{
+    position:absolute;left:0;right:0;top:0;
+    padding:0 26px;will-change:transform;
+  }
+  .scroller.mirror{transform:scaleX(-1);}
+  .read{
+    font-family:'Newsreader',Georgia,serif;
+    font-size:var(--read-size);line-height:var(--read-line);letter-spacing:var(--read-track);
+    color:var(--paper);max-width:760px;margin:0 auto;font-weight:400;text-wrap:pretty;
+  }
+  body.face-sans .read{font-family:'Space Grotesk',system-ui,sans-serif;font-weight:400;}
+  .read p{margin:0 0 .9em;}
+  .read .lead{
+    display:block;font-family:'Space Grotesk',sans-serif;font-size:12px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--lamp);font-weight:600;margin-bottom:1.4em;opacity:.9;
+  }
+  /* the pool of light: fade top & bottom toward booth color */
+  .lamp-mask{
+    position:absolute;inset:0;pointer-events:none;z-index:3;
+    background:linear-gradient(
+      var(--void) 4%,
+      rgba(0,0,0,0) 30%,
+      rgba(0,0,0,0) 70%,
+      var(--void) 96%);
+  }
+  /* warm glow behind the focal band */
+  .lamp-glow{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:135%;height:42%;pointer-events:none;z-index:1;
+    background:radial-gradient(ellipse at center, rgba(232,160,75,.16), rgba(232,160,75,0) 70%);
+  }
+  body.lamp-on .lamp-glow{background:radial-gradient(ellipse at center, rgba(232,160,75,.22), rgba(232,160,75,0) 70%);}
+  /* thin focal guide lines marking the read band */
+  .focal{position:absolute;left:0;right:0;height:0;border-top:1px solid var(--line);z-index:2;pointer-events:none;opacity:.5;}
+  .focal.top{top:42%;} .focal.bot{top:58%;}
+
+  .empty-hint{
+    position:absolute;inset:0;display:grid;place-items:center;z-index:4;text-align:center;
+    padding:30px;color:var(--muted);font-size:14px;line-height:1.6;pointer-events:none;
+  }
+
+  /* ---------- BOTTOM CONTROLS ---------- */
+  .controls{flex:0 0 auto;padding:10px 14px calc(var(--safe-b) + 12px);background:var(--void);
+    box-shadow:0 -18px 26px -22px rgba(0,0,0,.6);}
+  .meter{margin:2px 0 12px;}
+  .meter-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+  .meter-lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;}
+  .meter-val{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:var(--signal);}
+  .meter-track{height:7px;border-radius:6px;background:var(--booth-2);overflow:hidden;position:relative;}
+  .meter-fill{height:100%;width:0%;border-radius:6px;
+    background:linear-gradient(90deg,var(--signal),#A6E0C7);transition:width .5s cubic-bezier(.2,.7,.3,1);}
+  .meter-goal{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--lamp);opacity:.0;}
+
+  .speed-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+  .speed-row .sp-lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;min-width:26px;}
+  .speed-row input[type=range]{flex:1;-webkit-appearance:none;height:5px;border-radius:4px;
+    background:var(--booth-2);outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;
+    background:var(--lamp);border:3px solid var(--void);box-shadow:0 1px 4px rgba(0,0,0,.4);}
+  input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:var(--lamp);border:3px solid var(--void);}
+  .speed-row .sp-val{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;min-width:42px;text-align:right;}
+
+  .btn-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .ctl{
+    height:58px;border-radius:17px;background:var(--booth);border:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    flex:1;transition:transform .1s,background .15s,border-color .15s,opacity .15s;
+  }
+  .ctl:active{transform:scale(.95);}
+  .ctl .ic{font-size:20px;line-height:1;}
+  .ctl .lb{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;}
+  .ctl.nav{flex:0 0 52px;}
+  .ctl.play{flex:0 0 80px;background:var(--lamp);border-color:transparent;}
+  .ctl.play .ic{font-size:26px;color:var(--void);}
+  .ctl.play .lb{color:rgba(22,17,14,.65);}
+  .ctl.rec{flex:0 0 80px;}
+  .ctl.rec .ic{color:var(--rec);font-size:18px;}
+  .ctl.rec.live{background:rgba(229,87,78,.16);border-color:rgba(229,87,78,.5);}
+  .ctl.rec.live .ic{animation:pulse 1.1s infinite;}
+  .ctl.good{flex:0 0 64px;}
+  .ctl.good .ic{color:var(--signal);}
+  .ctl:disabled{opacity:.4;}
+
+  /* ---------- SHEETS ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(8,5,3,.62);backdrop-filter:blur(3px);z-index:40;
+    opacity:0;pointer-events:none;transition:opacity .25s;}
+  .scrim.on{opacity:1;pointer-events:auto;}
+  .sheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:50;max-height:88dvh;overflow-y:auto;
+    background:var(--booth);border-radius:24px 24px 0 0;border-top:1px solid var(--line-2);
+    transform:translateY(100%);transition:transform .32s cubic-bezier(.2,.8,.2,1);
+    padding:8px 18px calc(var(--safe-b) + 22px);-webkit-overflow-scrolling:touch;
+  }
+  .sheet.on{transform:translateY(0);}
+  .grab{width:38px;height:4px;border-radius:3px;background:var(--line-2);margin:8px auto 14px;}
+  .sheet h2{font-size:17px;font-weight:700;letter-spacing:.01em;margin:0 0 4px;}
+  .sheet .sub{font-size:13px;color:var(--muted);line-height:1.55;margin:0 0 18px;}
+  .sheet h3{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+    font-weight:600;margin:22px 0 10px;}
+
+  /* passage list */
+  .plist{display:flex;flex-direction:column;gap:8px;}
+  .pitem{
+    display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:15px;
+    background:var(--booth-2);border:1px solid transparent;text-align:left;width:100%;
+    transition:border-color .15s,background .15s;
+  }
+  .pitem.active{border-color:var(--lamp);}
+  .pitem .pidx{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:var(--muted);min-width:22px;}
+  .pitem .pbody{flex:1;min-width:0;}
+  .pitem .ptone{font-size:14px;font-weight:600;color:var(--paper);}
+  .pitem .pmeta{font-size:11.5px;color:var(--muted);margin-top:1px;}
+  .pitem .pmark{font-size:16px;width:22px;text-align:center;}
+  .pitem .pmark.has{color:var(--signal);}
+
+  /* takes list */
+  .takes{display:flex;flex-direction:column;gap:8px;}
+  .take{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:13px;background:var(--booth-2);}
+  .take .tinfo{flex:1;min-width:0;}
+  .take .tname{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .take .tdur{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-top:1px;}
+  .take.good{border:1px solid rgba(127,200,169,.4);}
+  .take .tbtn{width:36px;height:36px;border-radius:11px;background:var(--booth);display:grid;place-items:center;font-size:15px;border:1px solid var(--line);}
+  .take .tbtn.on{color:var(--signal);border-color:rgba(127,200,169,.5);}
+  .takes-empty{font-size:13px;color:var(--muted);text-align:center;padding:20px;line-height:1.5;}
+
+  /* settings rows */
+  .srow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-bottom:1px solid var(--line);}
+  .srow:last-child{border-bottom:none;}
+  .srow .sk{font-size:14px;font-weight:500;}
+  .srow .skd{font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .seg{display:flex;background:var(--booth-2);border-radius:11px;overflow:hidden;border:1px solid var(--line);}
+  .seg button{padding:8px 13px;font-size:13px;font-weight:600;color:var(--muted);transition:.15s;}
+  .seg button.on{background:var(--lamp);color:var(--void);}
+  .stepper{display:flex;align-items:center;gap:4px;background:var(--booth-2);border-radius:11px;border:1px solid var(--line);padding:4px;}
+  .stepper button{width:34px;height:34px;border-radius:8px;font-size:18px;font-weight:700;display:grid;place-items:center;}
+  .stepper .sv{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;min-width:48px;text-align:center;}
+
+  /* checklist */
+  .check{display:flex;gap:11px;padding:11px 0;align-items:flex-start;}
+  .check .cbox{flex:0 0 22px;height:22px;border-radius:7px;border:1.5px solid var(--line-2);display:grid;place-items:center;font-size:13px;color:var(--signal);margin-top:1px;transition:.15s;}
+  .check.done .cbox{background:rgba(127,200,169,.15);border-color:var(--signal);}
+  .check .ctxt{font-size:13.5px;line-height:1.5;color:var(--paper);}
+  .check.done .ctxt{color:var(--muted);}
+
+  .bigbtn{width:100%;height:52px;border-radius:15px;background:var(--lamp);color:var(--void);
+    font-size:15px;font-weight:700;letter-spacing:.01em;margin-top:20px;transition:transform .1s;}
+  .bigbtn:active{transform:scale(.98);}
+  .ghostbtn{width:100%;height:48px;border-radius:14px;background:var(--booth-2);border:1px solid var(--line);
+    color:var(--paper);font-size:14px;font-weight:600;margin-top:10px;}
+
+  .countdown{position:fixed;inset:0;z-index:60;display:grid;place-items:center;
+    background:rgba(8,5,3,.5);backdrop-filter:blur(2px);pointer-events:none;}
+  .countdown span{font-family:'Space Mono',monospace;font-size:120px;font-weight:700;color:var(--lamp);
+    animation:cd .9s ease;}
+  @keyframes cd{0%{opacity:0;transform:scale(.5)}30%{opacity:1;transform:scale(1)}100%{opacity:.2;transform:scale(1.15)}}
+
+  .toast{position:fixed;left:50%;bottom:calc(var(--safe-b) + 110px);transform:translateX(-50%) translateY(20px);
+    background:var(--booth-2);border:1px solid var(--line-2);color:var(--paper);padding:11px 18px;border-radius:13px;
+    font-size:13px;font-weight:600;z-index:70;opacity:0;pointer-events:none;transition:.25s;max-width:80vw;text-align:center;}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important;transition:none !important;}
+  }
+  /* level meter */
+  .level{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .level[hidden]{display:none;}
+  .lv-toggle{width:36px;height:30px;border-radius:9px;background:var(--booth-2);border:1px solid var(--line);
+    font-size:14px;display:grid;place-items:center;flex:0 0 auto;transition:background .15s,border-color .15s,transform .1s;}
+  .lv-toggle:active{transform:scale(.92);}
+  .lv-toggle.on{background:var(--signal);border-color:transparent;}
+  .level.idle .lv-track{opacity:.4;}
+  .level.idle .lv-fill{width:0 !important;}
+  .lv-ic{font-size:14px;opacity:.85;}
+  .lv-track{flex:1;height:11px;border-radius:7px;background:var(--booth-2);position:relative;overflow:hidden;}
+  .lv-track::after{content:'';position:absolute;right:0;top:0;bottom:0;width:9%;
+    background:linear-gradient(90deg,transparent,rgba(229,87,78,.4));pointer-events:none;}
+  .lv-fill{position:absolute;left:0;top:0;bottom:0;width:0%;border-radius:7px;background:var(--signal);transition:width .04s linear;}
+  .lv-peak{position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--paper);opacity:.85;left:0;transition:left .06s linear;}
+  .lv-tag{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;min-width:64px;text-align:right;letter-spacing:.02em;}
+
+  /* toggle switch */
+  .tgl{width:50px;height:30px;border-radius:16px;background:var(--booth-2);border:1px solid var(--line);position:relative;transition:background .2s;flex:0 0 auto;}
+  .tgl.on{background:var(--signal);border-color:transparent;}
+  .tgl .knob{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--paper);transition:left .2s;}
+  .tgl.on .knob{left:23px;background:var(--void);}
+
+  /* device select */
+  .selwrap{position:relative;}
+  .selwrap select{
+    -webkit-appearance:none;appearance:none;width:100%;padding:14px 40px 14px 14px;border-radius:14px;
+    background:var(--booth-2);border:1px solid var(--line);color:var(--paper);font-family:inherit;font-size:14px;font-weight:500;
+  }
+  .selwrap::after{content:'▾';position:absolute;right:16px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;}
+
+  .warnbox{display:flex;gap:10px;padding:13px 14px;border-radius:13px;background:rgba(229,87,78,.12);
+    border:1px solid rgba(229,87,78,.35);margin-top:12px;font-size:12.5px;line-height:1.5;color:var(--paper);}
+  .warnbox .wic{font-size:15px;flex:0 0 auto;}
+  .infobox{padding:13px 14px;border-radius:13px;background:var(--booth-2);border:1px solid var(--line);
+    margin-top:12px;font-size:12.5px;line-height:1.55;color:var(--muted);}
+  .infobox b{color:var(--paper);font-weight:600;}
+
+  /* mic monitor meter (in sheet) */
+  .monrow{display:flex;align-items:center;gap:12px;margin:16px 0 6px;}
+  .monrow .lv-track{height:16px;border-radius:9px;}
+  .monrow .lv-fill{border-radius:9px;}
+
+  /* cloud */
+  .cloud-user{display:flex;align-items:center;gap:12px;padding:14px;border-radius:15px;background:var(--booth-2);border:1px solid var(--line);margin-bottom:6px;}
+  .cloud-user .av{width:40px;height:40px;border-radius:50%;background:var(--lamp);color:var(--void);display:grid;place-items:center;font-weight:700;font-size:16px;flex:0 0 auto;overflow:hidden;}
+  .cloud-user .av img{width:100%;height:100%;object-fit:cover;}
+  .cloud-user .cu-info{flex:1;min-width:0;}
+  .cloud-user .cu-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cloud-user .cu-state{font-size:12px;color:var(--signal);margin-top:1px;}
+  textarea.cfg{width:100%;min-height:120px;padding:13px;border-radius:13px;background:var(--booth-2);border:1px solid var(--line);
+    color:var(--paper);font-family:'Space Mono',monospace;font-size:12px;line-height:1.5;resize:vertical;}
+  .cloud-chip{display:none;align-items:center;gap:6px;height:42px;padding:0 12px;border-radius:13px;background:var(--booth);border:1px solid var(--line);font-size:13px;font-weight:600;}
+  .cloud-chip.show{display:flex;}
+  .cloud-chip .cdot{width:8px;height:8px;border-radius:50%;background:var(--muted);}
+  .cloud-chip.synced .cdot{background:var(--signal);}
+
+  .take .tbtn.del{color:var(--rec);}
+  .tclip{display:inline-block;font-size:10px;font-weight:700;color:var(--rec);margin-left:6px;letter-spacing:.03em;
+    padding:1px 6px;border-radius:6px;background:rgba(229,87,78,.14);vertical-align:middle;}
+  .take.clipped{border:1px solid rgba(229,87,78,.4);}
+  .take.clipped.good{border-color:rgba(127,200,169,.5);}
+
+  @media (min-height:780px){ :root{--read-size:42px;} }
+</style>
+</head>
+<body class="">
+<div class="app">
+  <!-- TOP -->
+  <div class="topbar">
+    <button class="iconbtn" id="btnMenu" aria-label="Menü">☰</button>
+    <div class="topmeta" id="topMeta" role="button" tabindex="0">
+      <div class="pno" id="pNo">PASAJ 1 / 8</div>
+      <div class="tone" id="pTone">Sıcak · Karşılama</div>
+    </div>
+    <div class="rec-chip" id="recChip"><span class="dot"></span><span id="recTime">00:00</span></div>
+    <div class="lang-toggle">
+      <button id="langTR" class="on">TR</button>
+      <button id="langEN">EN</button>
+    </div>
+  </div>
+
+  <!-- STAGE -->
+  <div class="stage" id="stage">
+    <div class="lamp-glow"></div>
+    <div class="focal top"></div>
+    <div class="focal bot"></div>
+    <div class="scroller" id="scroller"><div class="read" id="readText"></div></div>
+    <div class="lamp-mask"></div>
+    <div class="empty-hint" id="emptyHint"></div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div class="meter">
+      <div class="meter-top">
+        <span class="meter-lbl" id="meterLbl">İyi kayıt</span>
+        <span class="meter-val" id="meterVal">0:00 / 35:00</span>
+      </div>
+      <div class="meter-track"><div class="meter-fill" id="meterFill"></div><div class="meter-goal" id="meterGoal"></div></div>
+    </div>
+    <div class="speed-row">
+      <span class="sp-lbl" id="spLbl">Hız</span>
+      <input type="range" id="speed" min="14" max="120" step="1" value="40" />
+      <span class="sp-val" id="spVal">1.0×</span>
+    </div>
+    <div class="level idle" id="levelRow">
+      <button class="lv-toggle" id="lvToggle" aria-label="Canlı seviye aç/kapat">🎙</button>
+      <div class="lv-track"><div class="lv-fill" id="lvFill"></div><div class="lv-peak" id="lvPeak"></div></div>
+      <span class="lv-tag" id="lvTag">—</span>
+    </div>
+    <div class="btn-row">
+      <button class="ctl nav" id="btnPrev" aria-label="Önceki"><span class="ic">‹</span></button>
+      <button class="ctl play" id="btnPlay"><span class="ic" id="playIc">▶</span><span class="lb" id="playLb">Başlat</span></button>
+      <button class="ctl rec" id="btnRec"><span class="ic" id="recIc">●</span><span class="lb" id="recLb">Kayıt</span></button>
+      <button class="ctl good" id="btnGood" aria-label="İyi"><span class="ic">✓</span><span class="lb" id="goodLb">İyi</span></button>
+      <button class="ctl nav" id="btnNext" aria-label="Sonraki"><span class="ic">›</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- SCRIM + SHEETS -->
+<div class="scrim" id="scrim"></div>
+
+<!-- Passage list sheet -->
+<div class="sheet" id="sheetList">
+  <div class="grab"></div>
+  <h2 id="slTitle">Pasajlar</h2>
+  <p class="sub" id="slSub">Her pasaj farklı bir ton. Aynı kayıt seansında olabildiğince çeşit oku — klon, verdiğin tonların ortalamasını öğrenir.</p>
+  <div class="plist" id="plist"></div>
+</div>
+
+<!-- Takes sheet -->
+<div class="sheet" id="sheetTakes">
+  <div class="grab"></div>
+  <h2 id="stTitle">Kayıtlar</h2>
+  <p class="sub" id="stSub">Bu seansta aldığın kayıtlar. İyi olanları işaretle ve indir — ElevenLabs'a yalnızca işaretlediklerini yükle.</p>
+  <div class="takes" id="takesList"></div>
+</div>
+
+<!-- Settings sheet -->
+<div class="sheet" id="sheetSettings">
+  <div class="grab"></div>
+  <h2 id="seTitle">Ayarlar</h2>
+  <p class="sub" id="seSub"></p>
+  <div id="setBody"></div>
+</div>
+
+<!-- Checklist sheet -->
+<div class="sheet" id="sheetCheck">
+  <div class="grab"></div>
+  <h2 id="ckTitle">Başlamadan önce</h2>
+  <p class="sub" id="ckSub">Klonun kalitesi, verdiğin örneğin temizliğine bağlı. 30 saniyeni al:</p>
+  <div id="checkBody"></div>
+  <button class="bigbtn" id="ckGo">Hazırım, başla</button>
+</div>
+
+<!-- Mic sheet -->
+<div class="sheet" id="sheetMic">
+  <div class="grab"></div>
+  <h2 id="miTitle">Mikrofon</h2>
+  <p class="sub" id="miSub">Kaynağı seç ve seviyene bak. Yeşil bant iyi; işaretçi sağdaki kırmızıya değiyorsa patlatıyorsun.</p>
+  <div class="selwrap"><select id="micSelect"></select></div>
+  <div class="monrow">
+    <span class="lv-ic">🎙</span>
+    <div class="lv-track"><div class="lv-fill" id="monFill"></div><div class="lv-peak" id="monPeak"></div></div>
+    <span class="lv-tag" id="monTag">—</span>
+  </div>
+  <div id="micWarnBox"></div>
+  <div class="infobox" id="micTipBox"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   KLON STÜDYO — voice-cloning sample teleprompter
+   ============================================================ */
+
+/* ---------- safe storage (no-throw in sandbox, persists when deployed) ---------- */
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem('klon_'+k); return v===null?d:JSON.parse(v);}catch(e){return d;} },
+  set(k,v){ try{ localStorage.setItem('klon_'+k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* ---------- i18n ---------- */
+const I = {
+  tr:{
+    pno:(a,b)=>`PASAJ ${a} / ${b}`,
+    play:'Başlat', pause:'Duraklat', rec:'Kayıt', stop:'Bitir', good:'İyi',
+    meterLbl:'İyi kayıt', spLbl:'Hız',
+    listTitle:'Pasajlar',
+    listSub:'Her pasaj farklı bir ton. Aynı seansta olabildiğince çeşit oku — klon, verdiğin tonların ortalamasını öğrenir.',
+    takesTitle:'Kayıtlar',
+    takesSub:'Bu seanstaki kayıtların. İyi olanları işaretle ve indir — ElevenLabs\'a yalnızca onları yükle.',
+    takesEmpty:'Henüz kayıt yok. Bir pasaj seç, ● Kayıt\'a bas, oku.',
+    setTitle:'Ayarlar',
+    setSub:'Teleprompter ve görünüm.',
+    checkTitle:'Başlamadan önce',
+    checkSub:'Klonun kalitesi örneğin temizliğine bağlı. 30 saniyeni al:',
+    ckGo:'Hazırım, başla',
+    s_face:'Yazı tipi', s_face_d:'Okuma alanı', s_serif:'Serif', s_sans:'Sans',
+    s_size:'Punto', s_size_d:'Okuma boyutu',
+    s_theme:'Ortam', s_theme_d:'Kabin karanlığı / lamba',
+    s_dark:'Karanlık', s_light:'Aydınlık',
+    s_target:'Hedef', s_target_d:'Toplanacak iyi kayıt (dk)',
+    s_mirror:'Ayna', s_mirror_d:'Fiziksel teleprompter camı için',
+    s_on:'Açık', s_off:'Kapalı',
+    s_reset:'Bu seansı sıfırla', s_reset_d:'Kayıtları ve işaretleri temizler',
+    t_marked:'İyi olarak işaretlendi',
+    t_unmarked:'İşaret kaldırıldı',
+    t_noTake:'Önce kayıt al, sonra işaretle',
+    t_micFail:'Mikrofona erişilemedi — yine de teleprompter\'ı kullanabilirsin, telefonun kayıt uygulamasıyla kaydet',
+    t_recStart:'Kayıt başladı',
+    t_dl:'İndiriliyor…',
+    t_reset:'Seans sıfırlandı',
+    t_target:'Hedef güncellendi',
+    emptyHint:'▶ Başlat ile metni akıt.\nOkuduğun satır ışık havuzunda kalır.',
+    take:'Kayıt', dlBtn:'indir', goodBtn:'iyi',
+    cd_lead:'Hazır ol',
+    checklist:[
+      'Sessiz bir oda — klima, fan, sokak sesi yok',
+      'Telefon uçak modunda (bildirim "ding"leri kayda girmesin)',
+      'Klavye/tuş sesleri kapalı',
+      'Mikrofon ağzına ~15–20 cm, sabit mesafe',
+      'Su yanında — ses tellerin kurumasın',
+      'Gerçek anlatım sesinle oku; kanaldaki tonun bu olacak',
+      'Pasajlar arası kısa mola ver, acele etme'
+    ]
+  },
+  en:{
+    pno:(a,b)=>`PASSAGE ${a} / ${b}`,
+    play:'Play', pause:'Pause', rec:'Record', stop:'Stop', good:'Good',
+    meterLbl:'Good audio', spLbl:'Speed',
+    listTitle:'Passages',
+    listSub:'Each passage is a different tone. Read as much variety as you can in one session — the clone learns the average of what you give it.',
+    takesTitle:'Recordings',
+    takesSub:'Your takes from this session. Mark the good ones and download them — upload only those to ElevenLabs.',
+    takesEmpty:'No takes yet. Pick a passage, hit ● Record, and read.',
+    setTitle:'Settings',
+    setSub:'Teleprompter and appearance.',
+    checkTitle:'Before you start',
+    checkSub:'Clone quality depends on a clean sample. Take 30 seconds:',
+    ckGo:'I\'m ready, begin',
+    s_face:'Typeface', s_face_d:'Reading area', s_serif:'Serif', s_sans:'Sans',
+    s_size:'Size', s_size_d:'Reading size',
+    s_theme:'Room', s_theme_d:'Booth dark / lamp on',
+    s_dark:'Dark', s_light:'Light',
+    s_target:'Target', s_target_d:'Good audio to collect (min)',
+    s_mirror:'Mirror', s_mirror_d:'For a physical teleprompter glass',
+    s_on:'On', s_off:'Off',
+    s_reset:'Reset this session', s_reset_d:'Clears takes and marks',
+    t_marked:'Marked as good',
+    t_unmarked:'Mark removed',
+    t_noTake:'Record first, then mark',
+    t_micFail:'Couldn\'t reach the mic — you can still use the teleprompter and record with your phone\'s recorder',
+    t_recStart:'Recording started',
+    t_dl:'Downloading…',
+    t_reset:'Session reset',
+    t_target:'Target updated',
+    emptyHint:'Hit ▶ Play to scroll.\nThe line you read stays in the pool of light.',
+    take:'Take', dlBtn:'save', goodBtn:'good',
+    cd_lead:'Get ready',
+    checklist:[
+      'Quiet room — no AC, fan, or street noise',
+      'Phone on airplane mode (no notification dings on the take)',
+      'Keyboard / key sounds off',
+      'Mic ~15–20 cm from your mouth, fixed distance',
+      'Water nearby — keep your voice from drying out',
+      'Read in your real narration voice; this is your channel tone',
+      'Short breaks between passages, no rush'
+    ]
+  }
+};
+
+Object.assign(I.tr,{
+  lv_good:'İYİ', lv_low:'ÇOK KISIK', lv_hot:'YÜKSEK', lv_clip:'PATLIYOR!',
+  micTitle:'Mikrofon', micSub:'Kaynağı seç ve seviyene bak. Yeşil bant iyi; işaretçi sağdaki kırmızıya değiyorsa patlatıyorsun.',
+  micWarn:'Seçili kaynak kablosuz/Bluetooth görünüyor. Bluetooth mikrofon ses kalitesini düşürür (dar bant, çağrı modu) — klonlama için kabloluyu ya da telefon mikrofonunu seç.',
+  micTip:'<b>İpucu:</b> Sessiz oda, ağzına ~15–20 cm sabit mesafe. Seviye genelde yeşilde kalsın, tepe işaretçisi ara sıra dokunabilir ama sürekli kırmızıda olmasın. Çok kısıksa klon cılız, patlıyorsa bozuk çıkar.',
+  s_mic:'Mikrofon', s_mic_d:'Kaynak ve seviye kontrolü',
+  del:'sil',
+  t_deleted:'Kayıt silindi', t_fetching:'indiriliyor…'
+});
+Object.assign(I.en,{
+  lv_good:'GOOD', lv_low:'TOO LOW', lv_hot:'HOT', lv_clip:'CLIPPING!',
+  micTitle:'Microphone', micSub:'Pick your source and watch your level. Green is good; if the marker hits the red on the right, you\'re clipping.',
+  micWarn:'The selected source looks wireless/Bluetooth. A Bluetooth mic degrades quality (narrow band, call mode) — for cloning, choose a wired mic or the phone mic.',
+  micTip:'<b>Tip:</b> Quiet room, ~15–20 cm fixed distance from your mouth. Keep the level mostly green; the peak marker can touch the top occasionally but shouldn\'t sit in the red. Too quiet makes a thin clone; clipping makes a broken one.',
+  s_mic:'Microphone', s_mic_d:'Source and level check',
+  del:'delete',
+  t_deleted:'Take deleted', t_fetching:'fetching…'
+});
+
+Object.assign(I.tr,{
+  lv_tapOn:'SEVİYE · DOKUN', lv_off:'KAPALI', clipBadge:'bozuk',
+  t_zipping:'Paketleniyor…', exportGood:'İyi kayıtları dışa aktar', exportAll:'Tümünü dışa aktar (ZIP)',
+  t_noExport:'Dışa aktarılacak kayıt yok'
+});
+Object.assign(I.en,{
+  lv_tapOn:'LEVEL · TAP', lv_off:'OFF', clipBadge:'clipped',
+  t_zipping:'Packing…', exportGood:'Export good takes', exportAll:'Export all (ZIP)',
+  t_noExport:'No takes to export'
+});
+
+/* ---------- passages: cat-psychology, tonal variety, phonetic range ----------
+   All kept within a believable narration band (warmth ↔ authority) on purpose:
+   ElevenLabs averages the input, so no shouting / extreme prosody. */
+const P = [
+  {
+    toneTR:'Sıcak · Karşılama', toneEN:'Warm · Welcome',
+    leadTR:'SICAK, DAVETKÂR', leadEN:'WARM, INVITING',
+    tr:`Merhaba. Eğer şu an bunu dinliyorsan, büyük ihtimalle evinin bir köşesinde minik, kürklü bir dostun vardır. Belki tam şu anda dizinde mırıldanıyor, belki de odanın öbür ucundan, yarı kapalı gözlerle seni süzüyor. Kediler böyledir işte: en çok sevdikleri anı çoğu zaman hiç belli etmeden yaşarlar. Bu yolculukta birlikte o küçük zihnin içine doğru ilerleyeceğiz. Neden öyle baktığını, kuyruğunu neden o şekilde salladığını, gece yarısı evin içinde neden birden koşmaya başladığını anlamaya çalışacağız. Çünkü bir kediyi gerçekten sevmek, onu anlamakla başlar. Sana bir söz vereyim: bu yolun sonunda dostuna her baktığında, daha önce göremediğin bir şeyi göreceksin. Şimdi derin bir nefes al, rahatına bak ve gel; bu sıcacık, tüylü dünyaya birlikte adım atalım.`,
+    en:`Hello there. If you're listening to this right now, chances are you've got a small, furry companion somewhere in your home. Maybe they're curled up on your lap, purring softly. Maybe they're watching you from across the room through half-closed eyes. That's the thing about cats: they often live their most affectionate moments without ever letting it show. On this journey, we're going to travel together into that quiet little mind. We'll learn why they look at you the way they do, why their tail moves like that, and why, at midnight, they suddenly tear across the house at full speed. Because truly loving a cat begins with understanding one. So let me make you a promise. By the end of this, every time you look at your companion, you'll notice something you couldn't see before. Take a slow breath, get comfortable, and come with me into this warm, furry world.`
+  },
+  {
+    toneTR:'Merak · Soru', toneEN:'Curious · Questions',
+    leadTR:'MERAKLI, SORGULAYAN', leadEN:'CURIOUS, WONDERING',
+    tr:`Hiç düşündün mü? Kedin sana doğru ağır ağır yürürken, gözlerini açıp kapatarak, yavaşça kırpıyor. Bu nedir? Tesadüf mü, yoksa sana bir şey mi söylüyor? Peki ya o tuhaf alışkanlık: yumuşak bir battaniyeyi minik patileriyle, sanki hamur yoğurur gibi, tekrar tekrar bastırıyor. Bunu neden yapıyor? Ya seni gördüğünde kuyruğunu dimdik kaldırıp ucunu hafifçe titretmesi? Bunların hepsinin bir anlamı var, dostum. Hiçbiri rastgele değil. Bir kedi bizimle konuşamaz, ama sürekli bir şeyler anlatır; kulaklarıyla, gözleriyle, duruşuyla, mırıltısının tonuyla. Sorun şu ki çoğumuz bu dili hiç öğrenmedik. Bugün bu sorulardan bazılarının cevabını bulacağız. Ve bir kere bu işaretleri görmeye başlayınca, inan bana, bir daha asla eskisi gibi bakamayacaksın.`,
+    en:`Have you ever wondered? Your cat walks slowly toward you, and then, gently, deliberately, they blink. What is that? Is it random, or are they telling you something? And what about that strange little habit, pressing their soft paws into a blanket again and again, as if they're kneading dough? Why do they do that? Or the way their tail shoots straight up with a tiny quiver at the tip the moment they see you? All of these mean something, my friend. None of it is accidental. A cat can't speak with us, yet they're constantly saying things, with their ears, their eyes, their posture, the pitch of their purr. The trouble is, most of us were never taught the language. Today we'll find the answers to a few of these questions. And once you start to see these signals, trust me, you'll never look at your cat the same way again.`
+  },
+  {
+    toneTR:'Otorite · Bilim', toneEN:'Authority · Science',
+    leadTR:'NET, BİLGİLENDİRİCİ', leadEN:'CLEAR, INFORMATIVE',
+    tr:`Şimdi işin bilimine bakalım. Bir kedinin mırıltısı yalnızca mutluluk değildir; aslında çok daha karmaşık bir sinyaldir. Araştırmalar, mırıltının titreşim frekansının çoğunlukla yirmi beş ile yüz elli hertz arasında olduğunu gösteriyor. İlginç olan şu: bu aralık, kemik ve doku iyileşmesini destekleyen frekanslarla örtüşüyor. Yani kedi yaralandığında, hastayken ya da huzursuzken bile mırıldayabilir; bu adeta kendi kendini sakinleştiren ve onaran bir mekanizmadır. Bir başka nokta da bıyıklar. Onlar yalnızca süs değil, son derece hassas duyusal organlardır. Her bir bıyığın kökünde sinir uçları bulunur ve kedi, hava akımındaki en ufak değişimi bile bu sayede algılar. Karanlıkta yön bulmasının, dar bir aralığa sığıp sığamayacağını anında ölçmesinin sırrı budur. Davranışın arkasında her zaman bir biyoloji vardır. Onu anladığımızda, kedimizi de daha doğru anlarız.`,
+    en:`Now let's look at the science. A cat's purr isn't simply happiness; it's a far more complex signal than that. Research shows the vibration frequency of a purr usually falls between twenty-five and one hundred fifty hertz. Here's what's fascinating: that range overlaps with frequencies known to support bone and tissue healing. Which means a cat may purr even when injured, ill, or anxious; it works almost like a built-in mechanism for self-soothing and repair. Then there are the whiskers. They're not decoration. They are remarkably precise sensory organs. At the base of every whisker sit clusters of nerve endings, and through them a cat detects the slightest shift in the air around it. That's the secret behind navigating in the dark, and behind judging, in an instant, whether its body will fit through a narrow gap. There is always biology behind behavior. And once we understand it, we understand our cats more accurately too.`
+  },
+  {
+    toneTR:'Hikaye · Anlatı', toneEN:'Story · Narrative',
+    leadTR:'AKICI, ANLATAN', leadEN:'FLOWING, STORYTELLING',
+    tr:`Sana küçük bir sahne anlatayım. Sabahın ilk ışıkları perdenin arasından süzülüyor. Ev hâlâ sessiz, herkes uykuda. Ama bir çift göz çoktan açılmış. Kedin pencerenin önünde oturmuş, dışarıda uçuşan bir kuşu izliyor. Kuyruğunun ucu hafifçe oynuyor, çenesi belli belirsiz titriyor. O an avlanmıyor elbette; sadece içindeki binlerce yıllık avcıyı hatırlıyor. Sonra ağır ağır doğruluyor, gerinip esniyor ve yavaşça yatağına doğru geliyor. Yatağın kenarına oturuyor, bir süre seni izliyor ve sonra usulca yanına kıvrılıyor. İşte tam o an, o küçük canlı sana en büyük güven mesajını veriyor. Çünkü bir kedi, ancak gerçekten güvendiği birinin yanında savunmasız uyur. Sıradan görünen o sabah, aslında sessiz bir sevgi ilanıdır. Çoğu zaman en derin bağlar, en sessiz anlarda kurulur.`,
+    en:`Let me paint you a small scene. The first light of morning slips through the curtains. The house is still quiet, everyone asleep. But one pair of eyes is already open. Your cat sits at the window, watching a bird flit past outside. The tip of its tail twitches, its jaw trembles almost imperceptibly. It isn't hunting, of course; it's simply remembering the hunter that has lived inside it for thousands of years. Then, slowly, it rises, stretches, yawns, and pads quietly toward your bed. It settles at the edge, watches you for a while, and then gently curls up beside you. And in that very moment, this small creature gives you its greatest message of trust. Because a cat only sleeps defenseless beside someone it truly trusts. That ordinary-looking morning is, in fact, a quiet declaration of love. So often, the deepest bonds are formed in the quietest moments.`
+  },
+  {
+    toneTR:'Şefkat · Yatıştırıcı', toneEN:'Gentle · Soothing',
+    leadTR:'YUMUŞAK, ŞEFKATLİ', leadEN:'SOFT, TENDER',
+    tr:`Şimdi sesimi biraz yumuşatayım, çünkü bu kısım nazik bir konu. Bazı kediler korkar. Yeni bir eve taşınmak, gürültülü bir misafir, ya da hayatlarındaki ufak bir değişiklik bile onları derinden sarsabilir. Belki senin kedin de masanın altına saklanıyor, ya da günlerce ortalıkta görünmüyordur. Lütfen bunu kişisel algılama ve sabırlı ol. Bir kediyle güven inşa etmek zorlamayla değil, alanına saygı göstermekle olur. Yere onun seviyesine in, sakin konuş, ona doğru elini uzatma; bırak o sana gelsin. Ödül olarak küçük bir şeyler ver, sesini alçalt, ani hareketlerden kaçın. Zaman tanı. Çünkü güven aceleye gelmez; damla damla birikir. Ve bir gün, hiç beklemediğin bir an, o ürkek küçük varlık gelip yanına oturduğunda anlayacaksın: bütün o sabır, o nazik bekleyiş, değdi. Sevgi bazen sadece sessizce, orada olmaktır.`,
+    en:`Let me soften my voice now, because this part is a gentle subject. Some cats are fearful. Moving to a new home, a loud guest, even a small change in their life can shake them deeply. Maybe your cat hides under the table, or disappears for days at a time. Please don't take it personally, and please be patient. Building trust with a cat doesn't happen through force; it happens through respecting their space. Get down to their level, speak softly, and don't reach toward them; let them come to you. Offer a small treat as a reward, lower your voice, avoid sudden movements. Give it time. Because trust can't be rushed; it gathers drop by drop. And one day, in a moment you never expected, when that timid little creature comes and sits beside you, you'll understand: all that patience, all that gentle waiting, was worth it. Sometimes love is simply being there, quietly.`
+  },
+  {
+    toneTR:'Merak Kancası · Gerilim', toneEN:'Hook · Intrigue',
+    leadTR:'GİZEMLİ, MERAK UYANDIRAN', leadEN:'MYSTERIOUS, BUILDING',
+    tr:`Ama burada çoğu kedi sahibinin gözden kaçırdığı bir şey var. Ve bunu öğrendiğinde, muhtemelen aklına geçmiş onlarca an gelecek. Düşün: kedin bazen sana bakar, gözlerini kilitler ve sonra bir anda ısırır ya da pati atar. Sevip okşarken, her şey yolundayken, birden. Çoğu insan bunu "huysuzluk" sanır. Oysa gerçek çok daha incedir. Kediler, "yeter" demenin yüzlerce sessiz yolunu kullanır ve bunları biz fark etmeden önce gösterir. Kuyruğun ucundaki o minik kıpırtı. Geriye doğru dönen bir kulak. Derinin sırtında hafifçe seğirmesi. Bunlar birer uyarıdır. Isırık, ilk mesaj değil; son mesajdır. Yani aslında kedin seni günlerce uyarmıştır, sen sadece dilini bilmiyordun. Birazdan bu işaretleri tek tek göstereceğim. Ve emin ol, bir kez gördükten sonra, kedinle aranızdaki o küçük yanlış anlaşmalar tamamen ortadan kalkacak.`,
+    en:`But here's something most cat owners miss entirely. And once you learn it, you'll probably remember dozens of past moments in a new light. Think about it: sometimes your cat looks at you, locks eyes, and then suddenly bites or swats. Mid-stroke, when everything seemed fine, out of nowhere. Most people call this "moodiness." But the truth is far subtler than that. Cats use hundreds of quiet ways to say "enough," and they show them long before we notice. That tiny flick at the tip of the tail. An ear rotating backward. A faint ripple of the skin along the back. These are warnings. The bite is not the first message; it's the last one. Which means your cat had been warning you for days, you just didn't know the language. In a moment, I'll show you these signals one by one. And believe me, once you've seen them, those little misunderstandings between you and your cat will vanish completely.`
+  },
+  {
+    toneTR:'Heyecan · Keşif', toneEN:'Wonder · Discovery',
+    leadTR:'CANLI, MERAKLA', leadEN:'BRIGHT, ENGAGED',
+    tr:`Şimdi seni şaşırtacak bir şey söyleyeceğim. Kedilerin, tıpkı bizim gibi, baskın bir patileri vardır; bir nevi "sağ elini" ya da "sol elini" kullanırlar. Hatta ilginç bir bulgu daha var: araştırmalar, dişi kedilerin daha çok sağ patiyi, erkek kedilerin ise sol patiyi tercih etme eğiliminde olduğunu gösteriyor. Bir düşün, bir sonraki sefere kedin oyuncağına uzandığında hangi patisini kullanıyor, dikkat et. Bir başka harika gerçek: kediler temelde "miyav"ı yetişkin kedilere karşı pek kullanmaz. O ses neredeyse tamamen bize, insanlara ayrılmıştır. Yani kedin sana "miyav" dediğinde, aslında sadece senin için geliştirdiği özel bir iletişim biçimini kullanıyor. Bunu kim sevmez ki? Her küçük detay, milyonlarca yıllık bir evrimin ve seninle kurduğu o eşsiz bağın izini taşıyor. Tüm bunları bilmek, sıradan bir anı bile büyülü kılıyor.`,
+    en:`Now I'm going to tell you something that might surprise you. Cats, just like us, have a dominant paw; they use a kind of "right hand" or "left hand." And there's an even more curious finding: research suggests female cats tend to favor the right paw, while male cats lean toward the left. Think about that, and next time your cat reaches for a toy, watch which paw it uses. Here's another wonderful fact: cats basically don't use the "meow" with other adult cats. That sound is reserved almost entirely for us, for humans. So when your cat meows at you, it's actually using a special form of communication it developed just for you. How can you not love that? Every small detail carries the trace of millions of years of evolution, and of the unique bond it has built with you. Knowing all of this makes even an ordinary moment feel a little magical.`
+  },
+  {
+    toneTR:'Güven · Kapanış', toneEN:'Reassuring · Close',
+    leadTR:'SAKİN, GÜVEN VEREN', leadEN:'CALM, REASSURING',
+    tr:`Ve böylece bugünün sonuna geldik. Belki şu an kafanda bir sürü yeni soru var, bu çok güzel; çünkü merak, anlamanın ilk adımıdır. Sana son olarak şunu hatırlatmak istiyorum: mükemmel bir kedi sahibi olman gerekmiyor. Sadece dikkatli, sabırlı ve sevgiyle bakan biri olman yeterli. Kedin senden akıllıca cümleler ya da kusursuz bir bakım beklemiyor; sadece anlaşılmak istiyor. Ve sen, bunu izleyerek, dinleyerek, öğrenmeye çalışarak zaten en doğru şeyi yapıyorsun. Bu akşam evine döndüğünde, bir an dur ve kedine gerçekten bak. Gözlerini yavaşça kırp, ona zaman ayır, sessizliğini paylaş. Çünkü o küçük varlık için sen, bütün dünyasın. Kendine iyi bak, dostuna iyi bak ve unutma: en güçlü bağlar, en küçük anlayış jestleriyle kurulur. Bir sonraki videoda görüşmek üzere.`,
+    en:`And with that, we've reached the end of today. Maybe you have a lot of new questions in your mind right now, and that's wonderful; because curiosity is the first step toward understanding. As a last thought, I want to remind you of this: you don't need to be a perfect cat owner. You only need to be someone who pays attention, stays patient, and watches with love. Your cat isn't expecting clever sentences or flawless care from you; it simply wants to be understood. And you, by watching, by listening, by trying to learn, are already doing exactly the right thing. When you get home tonight, pause for a moment and really look at your cat. Blink slowly, give it your time, share its silence. Because to that small creature, you are the whole world. Take care of yourself, take care of your friend, and remember: the strongest bonds are built from the smallest gestures of understanding. I'll see you in the next one.`
+  }
+];
+
+/* ---------- state ---------- */
+const S = {
+  lang: store.get('lang','tr'),
+  idx: 0,
+  scrolling:false,
+  raf:null, lastT:0,
+  speed: store.get('speed',40),
+  recording:false,
+  recStart:0, recTimer:null,
+  takes:[],            // {id,pIdx,lang,tone,url,dur,good,blob}
+  mediaRecorder:null, chunks:[], micStream:null,
+  face: store.get('face','serif'),
+  size: store.get('size',38),
+  theme: store.get('theme','dark'),
+  target: store.get('target',35),
+  mirror: store.get('mirror',false),
+  checkState: {},
+  // mic + metering
+  micId: store.get('micId',''), inputs:[], permGranted:false,
+  monitoring:false, monitorOn:false, audioCtx:null, analyser:null, meterRAF:null, meterTarget:'rec', clipped:false, arming:false,
+  db:null
+};
+
+/* ---------- el refs ---------- */
+const $ = id=>document.getElementById(id);
+const scroller=$('scroller'), readText=$('readText'), stage=$('stage');
+
+/* ---------- helpers ---------- */
+function t(k){ return I[S.lang][k]; }
+function fmt(sec){ sec=Math.max(0,Math.round(sec)); const m=Math.floor(sec/60), s=sec%60; return m+':'+String(s).padStart(2,'0'); }
+function fmtClock(sec){ sec=Math.max(0,Math.round(sec)); const m=Math.floor(sec/60), s=sec%60; return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
+let toastT=null;
+function toast(msg){ const el=$('toast'); el.textContent=msg; el.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('on'),2400); }
+
+/* ---------- render passage ---------- */
+function renderPassage(){
+  const p=P[S.idx];
+  const lead = S.lang==='tr'?p.leadTR:p.leadEN;
+  const body = S.lang==='tr'?p.tr:p.en;
+  const tone = S.lang==='tr'?p.toneTR:p.toneEN;
+  $('pNo').textContent = I[S.lang].pno(S.idx+1,P.length);
+  $('pTone').textContent = tone;
+  const paras = body.split('\n').filter(x=>x.trim());
+  readText.innerHTML = `<span class="lead">${lead}</span>` + paras.map(x=>`<p>${x}</p>`).join('');
+  resetScroll();
+  $('emptyHint').style.display='none';
+}
+
+/* ---------- scroll engine ---------- */
+function resetScroll(){
+  stopScroll();
+  // start with first line near the focal band (~46% down)
+  scroller.style.transition='transform .3s ease';
+  scroller.style.transform = `translateY(${stage.clientHeight*0.46}px)`;
+  setTimeout(()=>{ scroller.style.transition='none'; },320);
+}
+function startScroll(){
+  if(S.scrolling) return;
+  S.scrolling=true; S.lastT=performance.now();
+  $('playIc').textContent='❚❚'; $('playLb').textContent=t('pause');
+  scroller.style.transition='none';
+  const step=(now)=>{
+    if(!S.scrolling) return;
+    const dt=(now-S.lastT)/1000; S.lastT=now;
+    const cur=getY();
+    const next=cur - S.speed*dt;
+    setY(next);
+    // stop when fully scrolled past
+    if(next < -(scroller.scrollHeight) ){ stopScroll(); return; }
+    S.raf=requestAnimationFrame(step);
+  };
+  S.raf=requestAnimationFrame(step);
+}
+function stopScroll(){
+  S.scrolling=false; if(S.raf) cancelAnimationFrame(S.raf); S.raf=null;
+  $('playIc').textContent='▶'; $('playLb').textContent=t('play');
+}
+function getY(){ const m=/translateY\(([-0-9.]+)px\)/.exec(scroller.style.transform); return m?parseFloat(m[1]):0; }
+function setY(v){ scroller.style.transform=`translateY(${v}px)`; }
+
+/* countdown helper */
+function countdown(cb){
+  let n=3;
+  const overlay=document.createElement('div'); overlay.className='countdown';
+  const sp=document.createElement('span'); sp.textContent=n; overlay.appendChild(sp);
+  document.body.appendChild(overlay);
+  const tick=()=>{
+    n--;
+    if(n<=0){ overlay.remove(); cb(); return; }
+    sp.textContent=n; sp.style.animation='none'; void sp.offsetWidth; sp.style.animation='cd .9s ease';
+    setTimeout(tick,900);
+  };
+  setTimeout(tick,900);
+}
+function playWithCountdown(){
+  if(S.scrolling){ stopScroll(); return; }
+  countdown(()=>startScroll());
+}
+
+/* ---------- recording ---------- */
+// Record button = one-tap "record + read": pre-warm mic, 3-2-1, then recording and scroll start together.
+async function toggleRec(){
+  if(S.recording){ stopRec(); stopScroll(); return; }
+  if(S.arming) return;
+  S.arming=true;
+  try{
+    await getMicStream();
+    startMeter(S.micStream,'rec');
+    updateMonitorUI();
+  }catch(e){ S.arming=false; toast(t('t_micFail')); return; }
+  resetScroll();
+  countdown(()=>{ S.arming=false; beginRecNow(); startScroll(); });
+}
+function beginRecNow(){
+  try{
+    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus'
+               : (MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':'');
+    S.mediaRecorder = mime ? new MediaRecorder(S.micStream,{mimeType:mime,audioBitsPerSecond:192000})
+                           : new MediaRecorder(S.micStream);
+    S.chunks=[]; S.clipped=false;
+    S.mediaRecorder.ondataavailable=e=>{ if(e.data.size>0) S.chunks.push(e.data); };
+    S.mediaRecorder.onstop=onRecStop;
+    S.mediaRecorder.start();
+    S.recording=true; S.recStart=performance.now();
+    updateMonitorUI();
+    $('recChip').classList.add('live'); $('btnRec').classList.add('live');
+    $('recIc').textContent='■'; $('recLb').textContent=t('stop');
+    S.recTimer=setInterval(()=>{ $('recTime').textContent=fmtClock((performance.now()-S.recStart)/1000); },250);
+  }catch(e){ toast(t('t_micFail')); }
+}
+function stopRec(){
+  if(!S.mediaRecorder) return;
+  try{ S.mediaRecorder.stop(); }catch(e){}
+  S.recording=false; clearInterval(S.recTimer);
+  $('recChip').classList.remove('live'); $('btnRec').classList.remove('live');
+  $('recIc').textContent='●'; $('recLb').textContent=t('rec');
+  if(S.monitorOn){ startMonitoring('rec'); }
+  else { stopMeter(); if(!S.monitoring) stopMicStream(); updateMonitorUI(); }
+}
+function onRecStop(){
+  const dur=(performance.now()-S.recStart)/1000;
+  const type=S.mediaRecorder.mimeType||'audio/webm';
+  const blob=new Blob(S.chunks,{type});
+  const url=URL.createObjectURL(blob);
+  const p=P[S.idx];
+  const takeNum = S.takes.filter(x=>x.pIdx===S.idx && x.lang===S.lang).length + 1;
+  const take={
+    id:'t'+Date.now(), pIdx:S.idx, lang:S.lang,
+    tone:S.lang==='tr'?p.toneTR:p.toneEN, ext: type.includes('mp4')?'m4a':'webm',
+    takeNum, url, dur, good:false, clipped:S.clipped, blob, createdAt:Date.now()
+  };
+  S.takes.unshift(take);
+  idbPut(take);
+  $('recTime').textContent='00:00';
+  renderMeter();
+  if(openSheet==='sheetTakes') renderTakes();
+}
+
+/* ---------- takes ---------- */
+function latestTakeForCurrent(){
+  return S.takes.find(x=>x.pIdx===S.idx && x.lang===S.lang);
+}
+function markGood(){
+  const take=latestTakeForCurrent();
+  if(!take){ toast(t('t_noTake')); return; }
+  take.good=!take.good;
+  idbPut(take);
+  toast(take.good?t('t_marked'):t('t_unmarked'));
+  renderMeter(); if($('sheetTakes').classList.contains('on')) renderTakes();
+}
+function goodSeconds(){ return S.takes.filter(x=>x.good).reduce((a,b)=>a+b.dur,0); }
+async function downloadTake(take){
+  const blob=await ensureBlob(take);
+  if(!blob){ return; }
+  const a=document.createElement('a');
+  a.href=take.url;
+  const tone=take.tone.replace(/[·\s]+/g,'-').toLowerCase();
+  a.download=`klon_${take.lang}_p${take.pIdx+1}_${tone}_take${take.takeNum}.${take.ext}`;
+  document.body.appendChild(a); a.click(); a.remove();
+  toast(t('t_dl'));
+}
+
+/* ---------- meter ---------- */
+function renderMeter(){
+  const g=goodSeconds(); const target=S.target*60;
+  $('meterVal').textContent = `${fmt(g)} / ${fmt(target)}`;
+  $('meterFill').style.width = Math.min(100,(g/target)*100)+'%';
+  $('meterLbl').textContent=t('meterLbl');
+}
+
+/* ---------- sheets ---------- */
+let openSheet=null;
+function showSheet(id){
+  closeSheet();
+  if(id==='sheetList') renderList();
+  if(id==='sheetTakes') renderTakes();
+  if(id==='sheetSettings') renderSettings();
+  if(id==='sheetCheck') renderCheck();
+  if(id==='sheetMic'){ if(!S.recording) stopMeter(); renderMic(); refreshDevices().then(()=>{ renderMic(); if(!S.recording) startMonitoring('mon'); }); }
+  $('scrim').classList.add('on'); $(id).classList.add('on'); openSheet=id;
+}
+function closeSheet(){
+  if(openSheet==='sheetMic'){ stopMonitoring(); if(S.monitorOn && !S.recording) startMonitoring('rec'); }
+  $('scrim').classList.remove('on');
+  if(openSheet) $(openSheet).classList.remove('on');
+  openSheet=null;
+}
+
+function renderList(){
+  $('slTitle').textContent=t('listTitle'); $('slSub').textContent=t('listSub');
+  const el=$('plist'); el.innerHTML='';
+  P.forEach((p,i)=>{
+    const tone=S.lang==='tr'?p.toneTR:p.toneEN;
+    const lead=S.lang==='tr'?p.leadTR:p.leadEN;
+    const hasGood = S.takes.some(x=>x.pIdx===i && x.good);
+    const tk = S.takes.filter(x=>x.pIdx===i).length;
+    const b=document.createElement('button');
+    b.className='pitem'+(i===S.idx?' active':'');
+    b.innerHTML=`<span class="pidx">${String(i+1).padStart(2,'0')}</span>
+      <span class="pbody"><span class="ptone">${tone}</span><span class="pmeta">${lead}${tk?` · ${tk} ${t('take').toLowerCase()}`:''}</span></span>
+      <span class="pmark ${hasGood?'has':''}">${hasGood?'✓':'○'}</span>`;
+    b.onclick=()=>{ S.idx=i; renderPassage(); closeSheet(); };
+    el.appendChild(b);
+  });
+}
+
+function renderTakes(){
+  $('stTitle').textContent=t('takesTitle'); $('stSub').textContent=t('takesSub');
+  const el=$('takesList'); el.innerHTML='';
+  if(!S.takes.length){ el.innerHTML=`<div class="takes-empty">${t('takesEmpty')}</div>`; return; }
+  const goods=S.takes.filter(x=>x.good).length;
+  const exp=document.createElement('button');
+  exp.className='bigbtn'; exp.style.margin='0 0 14px';
+  exp.textContent=`⤓ ${goods?t('exportGood'):t('exportAll')} (${goods||S.takes.length})`;
+  exp.onclick=exportZip;
+  el.appendChild(exp);
+  S.takes.forEach(tk=>{
+    const row=document.createElement('div');
+    row.className='take'+(tk.good?' good':'')+(tk.clipped?' clipped':'');
+    row.innerHTML=`
+      <button class="tbtn" data-act="play">▶</button>
+      <div class="tinfo"><div class="tname">P${tk.pIdx+1} · ${tk.tone} · ${tk.lang.toUpperCase()} · ${t('take')} ${tk.takeNum}${tk.clipped?` <span class="tclip">⚠ ${t('clipBadge')}</span>`:''}</div>
+        <div class="tdur">${fmtClock(tk.dur)}</div></div>
+      <button class="tbtn ${tk.good?'on':''}" data-act="good">✓</button>
+      <button class="tbtn" data-act="dl">⤓</button>
+      <button class="tbtn del" data-act="del">🗑</button>`;
+    const bPlay=row.querySelector('[data-act=play]');
+    const bGood=row.querySelector('[data-act=good]');
+    const bDl=row.querySelector('[data-act=dl]');
+    const bDel=row.querySelector('[data-act=del]');
+    let audio=null;
+    bPlay.onclick=async()=>{
+      const blob=await ensureBlob(tk); if(!blob) return;
+      if(!audio){ audio=new Audio(tk.url); }
+      if(audio.paused){ audio.play(); bPlay.textContent='❚❚'; audio.onended=()=>bPlay.textContent='▶'; }
+      else { audio.pause(); bPlay.textContent='▶'; }
+    };
+    bGood.onclick=()=>{ tk.good=!tk.good; idbPut(tk); renderTakes(); renderMeter(); };
+    bDl.onclick=()=>downloadTake(tk);
+    bDel.onclick=()=>{
+      if(tk.url) URL.revokeObjectURL(tk.url);
+      idbDelete(tk.id);
+      S.takes=S.takes.filter(x=>x.id!==tk.id);
+      toast(t('t_deleted')); renderTakes(); renderMeter();
+    };
+    el.appendChild(row);
+  });
+}
+
+function renderSettings(){
+  $('seTitle').textContent=t('setTitle'); $('seSub').textContent=t('setSub');
+  const L=I[S.lang];
+  const body=$('setBody');
+  body.innerHTML=`
+   <div class="srow"><div><div class="sk">${L.s_face}</div><div class="skd">${L.s_face_d}</div></div>
+     <div class="seg" id="segFace"><button data-v="serif" class="${S.face==='serif'?'on':''}">${L.s_serif}</button><button data-v="sans" class="${S.face==='sans'?'on':''}">${L.s_sans}</button></div></div>
+   <div class="srow"><div><div class="sk">${L.s_size}</div><div class="skd">${L.s_size_d}</div></div>
+     <div class="stepper" id="stepSize"><button data-d="-2">−</button><span class="sv">${S.size}px</span><button data-d="2">+</button></div></div>
+   <div class="srow"><div><div class="sk">${L.s_theme}</div><div class="skd">${L.s_theme_d}</div></div>
+     <div class="seg" id="segTheme"><button data-v="dark" class="${S.theme==='dark'?'on':''}">${L.s_dark}</button><button data-v="light" class="${S.theme==='light'?'on':''}">${L.s_light}</button></div></div>
+   <div class="srow"><div><div class="sk">${L.s_target}</div><div class="skd">${L.s_target_d}</div></div>
+     <div class="stepper" id="stepTarget"><button data-d="-5">−</button><span class="sv">${S.target} dk</span><button data-d="5">+</button></div></div>
+   <div class="srow"><div><div class="sk">${L.s_mirror}</div><div class="skd">${L.s_mirror_d}</div></div>
+     <div class="seg" id="segMirror"><button data-v="off" class="${!S.mirror?'on':''}">${L.s_off}</button><button data-v="on" class="${S.mirror?'on':''}">${L.s_on}</button></div></div>
+   <div class="srow" id="rowMic" role="button" style="cursor:pointer"><div><div class="sk">${L.s_mic}</div><div class="skd">${L.s_mic_d}</div></div><span style="color:var(--muted);font-size:20px;line-height:1">›</span></div>
+   <div class="srow"><div><div class="sk">${L.s_reset}</div><div class="skd">${L.s_reset_d}</div></div>
+     <button class="tbtn" id="btnReset" style="width:auto;padding:0 14px;height:38px;border-radius:11px;">↺</button></div>`;
+
+  body.querySelectorAll('#segFace button').forEach(b=>b.onclick=()=>{ S.face=b.dataset.v; store.set('face',S.face); applyFace(); renderSettings(); });
+  body.querySelectorAll('#segTheme button').forEach(b=>b.onclick=()=>{ S.theme=b.dataset.v; store.set('theme',S.theme); applyTheme(); renderSettings(); });
+  body.querySelectorAll('#segMirror button').forEach(b=>b.onclick=()=>{ S.mirror=b.dataset.v==='on'; store.set('mirror',S.mirror); applyMirror(); renderSettings(); });
+  body.querySelectorAll('#stepSize button').forEach(b=>b.onclick=()=>{ S.size=Math.max(26,Math.min(60,S.size+parseInt(b.dataset.d))); store.set('size',S.size); applySize(); renderSettings(); });
+  body.querySelectorAll('#stepTarget button').forEach(b=>b.onclick=()=>{ S.target=Math.max(10,Math.min(120,S.target+parseInt(b.dataset.d))); store.set('target',S.target); renderMeter(); toast(t('t_target')); renderSettings(); });
+  $('rowMic').onclick=()=>showSheet('sheetMic');
+  $('btnReset').onclick=()=>{ S.takes.forEach(x=>{ if(x.url) URL.revokeObjectURL(x.url); idbDelete(x.id); }); S.takes=[]; renderMeter(); renderSettings(); toast(t('t_reset')); };
+}
+
+function renderCheck(){
+  $('ckTitle').textContent=t('checkTitle'); $('ckSub').textContent=t('checkSub'); $('ckGo').textContent=t('ckGo');
+  const body=$('checkBody'); body.innerHTML='';
+  t('checklist').forEach((item,i)=>{
+    const done=!!S.checkState[i];
+    const d=document.createElement('div'); d.className='check'+(done?' done':'');
+    d.innerHTML=`<div class="cbox">${done?'✓':''}</div><div class="ctxt">${item}</div>`;
+    d.onclick=()=>{ S.checkState[i]=!S.checkState[i]; renderCheck(); };
+    body.appendChild(d);
+  });
+  $('ckGo').onclick=()=>closeSheet();
+}
+
+/* ---------- apply settings ---------- */
+function applyFace(){ document.body.classList.toggle('face-sans',S.face==='sans'); }
+function applyTheme(){ document.body.classList.toggle('lamp-on',S.theme==='light');
+  $('metaTheme')&&0; document.querySelector('meta[name=theme-color]').setAttribute('content',S.theme==='light'?'#F4ECDF':'#16110E'); }
+function applyMirror(){ scroller.classList.toggle('mirror',S.mirror); }
+function applySize(){ document.documentElement.style.setProperty('--read-size',S.size+'px'); resetScroll(); }
+function applyLang(){
+  document.documentElement.lang=S.lang;
+  $('langTR').classList.toggle('on',S.lang==='tr');
+  $('langEN').classList.toggle('on',S.lang==='en');
+  $('playLb').textContent= S.scrolling?t('pause'):t('play');
+  $('recLb').textContent= S.recording?t('stop'):t('rec');
+  $('goodLb').textContent=t('good');
+  $('spLbl').textContent=t('spLbl');
+  renderPassage(); renderMeter();
+  if(typeof updateMonitorUI==='function') updateMonitorUI();
+}
+
+/* ---------- speed ---------- */
+function setSpeed(v){ S.speed=v; store.set('speed',v); const mult=(v/40); $('spVal').textContent=mult.toFixed(1)+'×'; }
+
+/* ---------- IndexedDB persistence (audio survives reload, offline) ---------- */
+function idbOpen(){
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open('klon-studio',1);
+    req.onupgradeneeded=()=>{ const db=req.result; if(!db.objectStoreNames.contains('takes')) db.createObjectStore('takes',{keyPath:'id'}); };
+    req.onsuccess=()=>res(req.result); req.onerror=()=>rej(req.error);
+  });
+}
+async function idbPut(take){
+  try{ if(!S.db) S.db=await idbOpen();
+    const rec={...take}; delete rec.url; // store blob, not the transient object URL
+    await new Promise((res,rej)=>{ const tx=S.db.transaction('takes','readwrite'); tx.objectStore('takes').put(rec); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); });
+  }catch(e){ console.warn('idbPut',e); }
+}
+async function idbDelete(id){
+  try{ if(!S.db) S.db=await idbOpen();
+    await new Promise(res=>{ const tx=S.db.transaction('takes','readwrite'); tx.objectStore('takes').delete(id); tx.oncomplete=res; tx.onerror=res; });
+  }catch(e){}
+}
+async function idbLoadAll(){
+  try{ if(!S.db) S.db=await idbOpen();
+    const recs=await new Promise((res,rej)=>{ const tx=S.db.transaction('takes','readonly'); const r=tx.objectStore('takes').getAll(); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error); });
+    recs.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    S.takes=recs.map(r=>({...r, url: r.blob?URL.createObjectURL(r.blob):null}));
+  }catch(e){ S.takes=[]; }
+}
+
+/* ---------- live level meter (Web Audio) ---------- */
+function meterEls(){ return S.meterTarget==='mon'
+  ? {fill:$('monFill'),peak:$('monPeak'),tag:$('monTag')}
+  : {fill:$('lvFill'),peak:$('lvPeak'),tag:$('lvTag')}; }
+function startMeter(stream,target){
+  stopMeter();
+  S.meterTarget=target||'rec';
+  try{
+    S.audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(S.audioCtx.state==='suspended'){ S.audioCtx.resume().catch(()=>{}); }
+    const src=S.audioCtx.createMediaStreamSource(stream);
+    S.analyser=S.audioCtx.createAnalyser(); S.analyser.fftSize=1024; S.analyser.smoothingTimeConstant=0.5;
+    src.connect(S.analyser);
+    const buf=new Float32Array(S.analyser.fftSize); let peakHold=0;
+    const loop=()=>{
+      if(!S.analyser){ return; }
+      S.analyser.getFloatTimeDomainData(buf);
+      let sum=0,peak=0; for(let i=0;i<buf.length;i++){ const a=Math.abs(buf[i]); sum+=buf[i]*buf[i]; if(a>peak)peak=a; }
+      const rms=Math.sqrt(sum/buf.length);
+      const level=Math.min(1, rms*4);
+      peakHold=Math.max(peak, peakHold*0.90);
+      if(S.recording && peak>=0.985) S.clipped=true;
+      const e=meterEls();
+      if(e.fill){
+        e.fill.style.width=Math.round(level*100)+'%';
+        e.peak.style.left=Math.min(100,peakHold*100)+'%';
+        let c,tag;
+        if(peakHold>=0.985){ c='var(--rec)'; tag=t('lv_clip'); }
+        else if(level<0.05){ c='var(--muted)'; tag=t('lv_low'); }
+        else if(level>0.8){ c='var(--lamp)'; tag=t('lv_hot'); }
+        else { c='var(--signal)'; tag=t('lv_good'); }
+        e.fill.style.background=c; e.tag.textContent=tag;
+      }
+      S.meterRAF=requestAnimationFrame(loop);
+    };
+    loop();
+  }catch(e){ console.warn('meter',e); }
+}
+function stopMeter(){
+  if(S.meterRAF) cancelAnimationFrame(S.meterRAF); S.meterRAF=null;
+  if(S.audioCtx){ try{S.audioCtx.close();}catch(e){} }
+  S.audioCtx=null; S.analyser=null;
+}
+
+/* ---------- microphone source ---------- */
+function micConstraints(){
+  const c={ echoCancellation:false, noiseSuppression:false, autoGainControl:false, channelCount:1 };
+  if(S.micId) c.deviceId={exact:S.micId};
+  return {audio:c};
+}
+async function getMicStream(){
+  if(S.micStream && S.micStream.active){
+    const id=S.micStream.getAudioTracks()[0] && S.micStream.getAudioTracks()[0].getSettings().deviceId;
+    if(!S.micId || id===S.micId) return S.micStream;
+    stopMicStream();
+  }
+  S.micStream=await navigator.mediaDevices.getUserMedia(micConstraints());
+  S.permGranted=true;
+  return S.micStream;
+}
+function stopMicStream(){ if(S.micStream){ S.micStream.getTracks().forEach(t=>t.stop()); S.micStream=null; } }
+async function refreshDevices(){
+  try{
+    if(!S.permGranted){ const s=await navigator.mediaDevices.getUserMedia({audio:true}); s.getTracks().forEach(t=>t.stop()); S.permGranted=true; }
+    const devs=await navigator.mediaDevices.enumerateDevices();
+    S.inputs=devs.filter(d=>d.kind==='audioinput');
+    if((!S.micId || !S.inputs.some(d=>d.deviceId===S.micId)) && S.inputs[0]){ S.micId=S.inputs[0].deviceId; store.set('micId',S.micId); }
+  }catch(e){ S.inputs=[]; }
+}
+function isWireless(label){ return /bluetooth|airpod|hands.?free|hfp|kablosuz|wireless|\bbt\b/i.test(label||''); }
+async function startMonitoring(target){
+  try{ const s=await getMicStream(); S.monitoring=true; startMeter(s,target||'rec'); updateMonitorUI(); }
+  catch(e){ S.monitorOn=false; toast(t('t_micFail')); updateMonitorUI(); }
+}
+function stopMonitoring(){ S.monitoring=false; stopMeter(); if(!S.recording) stopMicStream(); updateMonitorUI(); }
+
+function renderMic(){
+  $('miTitle').textContent=t('micTitle'); $('miSub').textContent=t('micSub');
+  $('micTipBox').innerHTML=t('micTip');
+  const sel=$('micSelect'); sel.innerHTML='';
+  if(!S.inputs.length){ const o=document.createElement('option'); o.textContent='—'; sel.appendChild(o); }
+  S.inputs.forEach((d,i)=>{
+    const o=document.createElement('option'); o.value=d.deviceId;
+    o.textContent=d.label||`Mikrofon ${i+1}`; if(d.deviceId===S.micId)o.selected=true; sel.appendChild(o);
+  });
+  sel.onchange=async()=>{ S.micId=sel.value; store.set('micId',S.micId); stopMicStream(); await startMonitoring(); renderMicWarn(); };
+  renderMicWarn();
+}
+function renderMicWarn(){
+  const cur=S.inputs.find(d=>d.deviceId===S.micId);
+  $('micWarnBox').innerHTML=(cur && isWireless(cur.label))
+    ? `<div class="warnbox"><span class="wic">⚠️</span><span>${t('micWarn')}</span></div>` : '';
+}
+
+/* ---------- take helpers ---------- */
+async function ensureBlob(take){ return take.blob || null; }
+
+/* ---------- export all takes as a single ZIP (store-only, dependency-free) ---------- */
+function crc32(buf){
+  let table=crc32.table;
+  if(!table){ table=crc32.table=[]; for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; table[n]=c>>>0; } }
+  let crc=0xFFFFFFFF;
+  for(let i=0;i<buf.length;i++) crc=(crc>>>8)^table[(crc^buf[i])&0xFF];
+  return (crc^0xFFFFFFFF)>>>0;
+}
+const _u16=n=>[n&0xFF,(n>>>8)&0xFF];
+const _u32=n=>[n&0xFF,(n>>>8)&0xFF,(n>>>16)&0xFF,(n>>>24)&0xFF];
+const _DOSDATE=22561; // 2024-01-01, keeps archive tools happy
+async function makeZip(files){
+  const enc=new TextEncoder(); const chunks=[]; const central=[]; let offset=0;
+  for(const f of files){
+    const data=new Uint8Array(await f.blob.arrayBuffer());
+    const name=enc.encode(f.name); const crc=crc32(data);
+    const lfh=new Uint8Array([].concat(_u32(0x04034b50),_u16(20),_u16(0),_u16(0),_u16(0),_u16(_DOSDATE),_u32(crc),_u32(data.length),_u32(data.length),_u16(name.length),_u16(0)));
+    chunks.push(lfh,name,data);
+    const localSize=lfh.length+name.length+data.length;
+    const cdh=new Uint8Array([].concat(_u32(0x02014b50),_u16(20),_u16(20),_u16(0),_u16(0),_u16(0),_u16(_DOSDATE),_u32(crc),_u32(data.length),_u32(data.length),_u16(name.length),_u16(0),_u16(0),_u16(0),_u16(0),_u32(0),_u32(offset)));
+    central.push(cdh,name);
+    offset+=localSize;
+  }
+  const centralStart=offset; let centralSize=0; central.forEach(a=>centralSize+=a.length);
+  const eocd=new Uint8Array([].concat(_u32(0x06054b50),_u16(0),_u16(0),_u16(files.length),_u16(files.length),_u32(centralSize),_u32(centralStart),_u16(0)));
+  return new Blob([...chunks,...central,eocd],{type:'application/zip'});
+}
+function takeFileName(tk){ const tone=tk.tone.replace(/[·\s]+/g,'-').toLowerCase(); return `klon_${tk.lang}_p${tk.pIdx+1}_${tone}_take${tk.takeNum}.${tk.ext}`; }
+async function exportZip(){
+  const goods=S.takes.filter(x=>x.good);
+  const list=goods.length?goods:S.takes;
+  if(!list.length){ toast(t('t_noExport')); return; }
+  toast(t('t_zipping'));
+  const files=[];
+  for(const tk of list){ const b=await ensureBlob(tk); if(b) files.push({name:takeFileName(tk),blob:b}); }
+  if(!files.length){ toast(t('t_noExport')); return; }
+  const zip=await makeZip(files);
+  const a=document.createElement('a'); a.href=URL.createObjectURL(zip);
+  a.download=`klon_kayitlar_${new Date().toISOString().slice(0,10)}.zip`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
+
+/* ---------- home live-level monitor toggle (one tap) ---------- */
+function toggleMonitor(){
+  if(S.recording) return; // meter already shows the recording level
+  S.monitorOn=!S.monitorOn;
+  if(S.monitorOn) startMonitoring('rec'); else stopMonitoring();
+  updateMonitorUI();
+}
+function updateMonitorUI(){
+  const active=S.monitoring||S.recording;
+  $('levelRow').classList.toggle('idle', !active);
+  $('lvToggle').classList.toggle('on', S.monitorOn||S.recording);
+  if(!active){ $('lvFill').style.width='0%'; $('lvPeak').style.left='0%'; $('lvTag').textContent=t('lv_tapOn'); }
+}
+
+/* ---------- wire up ---------- */
+$('btnMenu').onclick=()=>showSheet('sheetSettings');
+$('topMeta').onclick=()=>showSheet('sheetList');
+$('recChip').onclick=()=>showSheet('sheetTakes');
+$('scrim').onclick=closeSheet;
+$('btnPlay').onclick=playWithCountdown;
+$('btnRec').onclick=toggleRec;
+$('btnGood').onclick=markGood;
+$('lvToggle').onclick=toggleMonitor;
+$('btnPrev').onclick=()=>{ if(S.idx>0){S.idx--;renderPassage();} };
+$('btnNext').onclick=()=>{ if(S.idx<P.length-1){S.idx++;renderPassage();} };
+$('langTR').onclick=()=>{ S.lang='tr'; store.set('lang','tr'); applyLang(); };
+$('langEN').onclick=()=>{ S.lang='en'; store.set('lang','en'); applyLang(); };
+$('speed').oninput=e=>setSpeed(parseInt(e.target.value));
+
+// drag the script manually (pause autoscroll while dragging)
+let dragY=null,dragStart=0;
+stage.addEventListener('touchstart',e=>{ dragY=e.touches[0].clientY; dragStart=getY(); if(S.scrolling)stopScroll(); },{passive:true});
+stage.addEventListener('touchmove',e=>{ if(dragY!==null){ const dy=e.touches[0].clientY-dragY; setY(dragStart+dy);} },{passive:true});
+stage.addEventListener('touchend',()=>{ dragY=null; });
+// desktop wheel
+stage.addEventListener('wheel',e=>{ if(S.scrolling)stopScroll(); setY(getY()-e.deltaY); },{passive:true});
+
+// keyboard (desktop testing)
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'){ e.preventDefault(); playWithCountdown(); }
+  if(e.code==='ArrowRight') $('btnNext').click();
+  if(e.code==='ArrowLeft') $('btnPrev').click();
+});
+
+/* ---------- service worker (progressive; silent if absent) ---------- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+}
+
+/* ---------- init ---------- */
+async function init(){
+  applyFace(); applyTheme(); applyMirror(); applySize();
+  setSpeed(S.speed); $('speed').value=S.speed;
+  applyLang();
+  await idbLoadAll();
+  renderMeter();
+  updateMonitorUI();
+  if(navigator.mediaDevices && navigator.mediaDevices.addEventListener){
+    navigator.mediaDevices.addEventListener('devicechange',()=>{ if(openSheet==='sheetMic') refreshDevices().then(renderMic); });
+  }
+  // first-run: show checklist once
+  if(!store.get('seen',false)){ store.set('seen',true); setTimeout(()=>showSheet('sheetCheck'),400); }
+  window.addEventListener('resize',()=>{ if(!S.scrolling) resetScroll(); });
+}
+init();
+</script>
+</body>
+</html>

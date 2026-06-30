@@ -1,0 +1,20 @@
+{
+  "name": "Klon Stüdyo",
+  "short_name": "Klon",
+  "description": "Ses klonu örneği için teleprompter — TR/EN pasajlar, lamba havuzu okuma, kayıt ve iyi-take ölçer.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#16110E",
+  "theme_color": "#16110E",
+  "lang": "tr",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%2316110E'/%3E%3Ccircle cx='256' cy='232' r='150' fill='none' stroke='%23E8A04B' stroke-width='10' opacity='0.35'/%3E%3Crect x='226' y='150' width='60' height='150' rx='30' fill='%23E8A04B'/%3E%3Cpath d='M196 250a60 60 0 0 0 120 0' fill='none' stroke='%23E8A04B' stroke-width='14' stroke-linecap='round'/%3E%3Cline x1='256' y1='310' x2='256' y2='350' stroke='%23E8A04B' stroke-width='14' stroke-linecap='round'/%3E%3Cline x1='216' y1='366' x2='296' y2='366' stroke='%23E8A04B' stroke-width='14' stroke-linecap='round'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
