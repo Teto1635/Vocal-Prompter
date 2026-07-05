@@ -356,8 +356,8 @@
     </div>
     <div class="speed-row">
       <span class="sp-lbl" id="spLbl">Hız</span>
-      <input type="range" id="speed" min="14" max="120" step="1" value="40" />
-      <span class="sp-val" id="spVal">1.0×</span>
+      <input type="range" id="speed" min="90" max="140" step="1" value="100" />
+      <span class="sp-val" id="spVal">100 k/dk</span>
     </div>
     <div class="level idle" id="levelRow">
       <button class="lv-toggle" id="lvToggle" aria-label="Canlı seviye aç/kapat">🎙</button>
@@ -550,12 +550,18 @@ Object.assign(I.en,{
 Object.assign(I.tr,{
   lv_tapOn:'SEVİYE · DOKUN', lv_off:'KAPALI', clipBadge:'bozuk',
   t_zipping:'Paketleniyor…', exportGood:'İyi kayıtları dışa aktar', exportAll:'Tümünü dışa aktar (ZIP)',
-  t_noExport:'Dışa aktarılacak kayıt yok'
+  t_noExport:'Dışa aktarılacak kayıt yok',
+  wpmUnit:'k/dk',
+  s_wpmMin:'En düşük tempo', s_wpmMax:'En yüksek tempo', s_wpm_d:'kelime/dakika (k/dk)',
+  t_wpmRange:'Tempo aralığı güncellendi'
 });
 Object.assign(I.en,{
   lv_tapOn:'LEVEL · TAP', lv_off:'OFF', clipBadge:'clipped',
   t_zipping:'Packing…', exportGood:'Export good takes', exportAll:'Export all (ZIP)',
-  t_noExport:'No takes to export'
+  t_noExport:'No takes to export',
+  wpmUnit:'wpm',
+  s_wpmMin:'Min pace', s_wpmMax:'Max pace', s_wpm_d:'words per minute (wpm)',
+  t_wpmRange:'Pace range updated'
 });
 
 /* ---------- passages: cat-psychology, tonal variety, phonetic range ----------
@@ -618,7 +624,9 @@ const S = {
   idx: 0,
   scrolling:false,
   raf:null, lastT:0,
-  speed: store.get('speed',40),
+  speed: 40, // px/s, computed live from wpm + passage density
+  wpm: store.get('wpm',100), wpmMin: store.get('wpmMin',90), wpmMax: store.get('wpmMax',140),
+  wordCount: 0, contentH: 0,
   recording:false,
   recStart:0, recTimer:null,
   takes:[],            // {id,pIdx,lang,tone,url,dur,good,blob}
@@ -656,11 +664,20 @@ function renderPassage(){
   $('pTone').textContent = tone;
   const paras = body.split('\n').filter(x=>x.trim());
   readText.innerHTML = `<span class="lead">${lead}</span>` + paras.map(x=>`<p>${x}</p>`).join('');
+  S.wordCount = body.trim().split(/\s+/).filter(Boolean).length;
+  S.contentH = readText.scrollHeight || readText.offsetHeight || 0;
+  recomputeSpeed();
   resetScroll();
   $('emptyHint').style.display='none';
 }
 
 /* ---------- scroll engine ---------- */
+// Map target reading pace (words/min) to px/s using this passage's own density:
+// px/s = (wpm/60) * (contentHeight / wordCount). Recomputed on passage/size/pace change.
+function recomputeSpeed(){
+  const wpp = (S.wordCount>0 && S.contentH>0) ? (S.contentH / S.wordCount) : 6;
+  S.speed = (S.wpm/60) * wpp;
+}
 function resetScroll(){
   stopScroll();
   // start with first line near the focal band (~46% down)
@@ -890,6 +907,10 @@ function renderSettings(){
      <div class="seg" id="segFace"><button data-v="serif" class="${S.face==='serif'?'on':''}">${L.s_serif}</button><button data-v="sans" class="${S.face==='sans'?'on':''}">${L.s_sans}</button></div></div>
    <div class="srow"><div><div class="sk">${L.s_size}</div><div class="skd">${L.s_size_d}</div></div>
      <div class="stepper" id="stepSize"><button data-d="-2">−</button><span class="sv">${S.size}px</span><button data-d="2">+</button></div></div>
+   <div class="srow"><div><div class="sk">${L.s_wpmMin}</div><div class="skd">${L.s_wpm_d}</div></div>
+     <div class="stepper" id="stepWpmMin"><button data-d="-5">−</button><span class="sv">${S.wpmMin}</span><button data-d="5">+</button></div></div>
+   <div class="srow"><div><div class="sk">${L.s_wpmMax}</div><div class="skd">${L.s_wpm_d}</div></div>
+     <div class="stepper" id="stepWpmMax"><button data-d="-5">−</button><span class="sv">${S.wpmMax}</span><button data-d="5">+</button></div></div>
    <div class="srow"><div><div class="sk">${L.s_theme}</div><div class="skd">${L.s_theme_d}</div></div>
      <div class="seg" id="segTheme"><button data-v="dark" class="${S.theme==='dark'?'on':''}">${L.s_dark}</button><button data-v="light" class="${S.theme==='light'?'on':''}">${L.s_light}</button></div></div>
    <div class="srow"><div><div class="sk">${L.s_target}</div><div class="skd">${L.s_target_d}</div></div>
@@ -905,6 +926,8 @@ function renderSettings(){
   body.querySelectorAll('#segMirror button').forEach(b=>b.onclick=()=>{ S.mirror=b.dataset.v==='on'; store.set('mirror',S.mirror); applyMirror(); renderSettings(); });
   body.querySelectorAll('#stepSize button').forEach(b=>b.onclick=()=>{ S.size=Math.max(26,Math.min(60,S.size+parseInt(b.dataset.d))); store.set('size',S.size); applySize(); renderSettings(); });
   body.querySelectorAll('#stepTarget button').forEach(b=>b.onclick=()=>{ S.target=Math.max(10,Math.min(120,S.target+parseInt(b.dataset.d))); store.set('target',S.target); renderMeter(); toast(t('t_target')); renderSettings(); });
+  body.querySelectorAll('#stepWpmMin button').forEach(b=>b.onclick=()=>{ S.wpmMin=Math.max(40,Math.min(S.wpmMax-5,S.wpmMin+parseInt(b.dataset.d))); store.set('wpmMin',S.wpmMin); applyWpmRange(); toast(t('t_wpmRange')); renderSettings(); });
+  body.querySelectorAll('#stepWpmMax button').forEach(b=>b.onclick=()=>{ S.wpmMax=Math.min(240,Math.max(S.wpmMin+5,S.wpmMax+parseInt(b.dataset.d))); store.set('wpmMax',S.wpmMax); applyWpmRange(); toast(t('t_wpmRange')); renderSettings(); });
   $('rowMic').onclick=()=>showSheet('sheetMic');
   $('btnReset').onclick=()=>{ S.takes.forEach(x=>{ if(x.url) URL.revokeObjectURL(x.url); idbDelete(x.id); }); S.takes=[]; renderMeter(); renderSettings(); toast(t('t_reset')); };
 }
@@ -927,7 +950,7 @@ function applyFace(){ document.body.classList.toggle('face-sans',S.face==='sans'
 function applyTheme(){ document.body.classList.toggle('lamp-on',S.theme==='light');
   $('metaTheme')&&0; document.querySelector('meta[name=theme-color]').setAttribute('content',S.theme==='light'?'#F4ECDF':'#16110E'); }
 function applyMirror(){ scroller.classList.toggle('mirror',S.mirror); }
-function applySize(){ document.documentElement.style.setProperty('--read-size',S.size+'px'); resetScroll(); }
+function applySize(){ document.documentElement.style.setProperty('--read-size',S.size+'px'); renderPassage(); }
 function applyLang(){
   document.documentElement.lang=S.lang;
   $('langTR').classList.toggle('on',S.lang==='tr');
@@ -941,7 +964,14 @@ function applyLang(){
 }
 
 /* ---------- speed ---------- */
-function setSpeed(v){ S.speed=v; store.set('speed',v); const mult=(v/40); $('spVal').textContent=mult.toFixed(1)+'×'; }
+function setWpm(v){ S.wpm=v; store.set('wpm',v); $('spVal').textContent=`${v} ${t('wpmUnit')}`; recomputeSpeed(); }
+function applyWpmRange(){
+  const el=$('speed');
+  el.min=S.wpmMin; el.max=S.wpmMax; el.step=1;
+  S.wpm=Math.max(S.wpmMin,Math.min(S.wpmMax,S.wpm));
+  el.value=S.wpm;
+  setWpm(S.wpm);
+}
 
 /* ---------- IndexedDB persistence (audio survives reload, offline) ---------- */
 function idbOpen(){
@@ -1137,7 +1167,7 @@ $('btnPrev').onclick=()=>{ if(S.idx>0){S.idx--;renderPassage();} };
 $('btnNext').onclick=()=>{ if(S.idx<P.length-1){S.idx++;renderPassage();} };
 $('langTR').onclick=()=>{ S.lang='tr'; store.set('lang','tr'); applyLang(); };
 $('langEN').onclick=()=>{ S.lang='en'; store.set('lang','en'); applyLang(); };
-$('speed').oninput=e=>setSpeed(parseInt(e.target.value));
+$('speed').oninput=e=>setWpm(parseInt(e.target.value));
 
 // drag the script manually (pause autoscroll while dragging)
 let dragY=null,dragStart=0;
@@ -1162,7 +1192,7 @@ if('serviceWorker' in navigator){
 /* ---------- init ---------- */
 async function init(){
   applyFace(); applyTheme(); applyMirror(); applySize();
-  setSpeed(S.speed); $('speed').value=S.speed;
+  applyWpmRange();
   applyLang();
   await idbLoadAll();
   renderMeter();
@@ -1170,9 +1200,11 @@ async function init(){
   if(navigator.mediaDevices && navigator.mediaDevices.addEventListener){
     navigator.mediaDevices.addEventListener('devicechange',()=>{ if(openSheet==='sheetMic') refreshDevices().then(renderMic); });
   }
+  // re-measure once web fonts finish loading (text height changes → keeps WPM accurate)
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(()=>{ if(!S.scrolling) renderPassage(); }); }
   // first-run: show checklist once
   if(!store.get('seen',false)){ store.set('seen',true); setTimeout(()=>showSheet('sheetCheck'),400); }
-  window.addEventListener('resize',()=>{ if(!S.scrolling) resetScroll(); });
+  window.addEventListener('resize',()=>{ if(!S.scrolling) renderPassage(); });
 }
 init();
 </script>
