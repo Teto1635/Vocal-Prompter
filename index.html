@@ -100,6 +100,8 @@
   }
   body.face-sans .read{font-family:'Space Grotesk',system-ui,sans-serif;font-weight:400;}
   .read p{margin:0 0 .9em;}
+  .read .sent{cursor:pointer;transition:color .15s;border-radius:4px;}
+  .read .sent.reading{color:var(--lamp);}
   .read .lead{
     display:block;font-family:'Space Grotesk',sans-serif;font-size:12px;letter-spacing:.16em;
     text-transform:uppercase;color:var(--lamp);font-weight:600;margin-bottom:1.4em;opacity:.9;
@@ -660,7 +662,7 @@ const S = {
   micId: store.get('micId',''), inputs:[], permGranted:false,
   monitoring:false, monitorOn:false, audioCtx:null, analyser:null, meterRAF:null, meterTarget:'rec', clipped:false, arming:false,
   voices:[], speaking:false, voiceTR: store.get('voiceTR',''), voiceEN: store.get('voiceEN',''),
-  audio:null, audioTakeId:null, audioBtn:null,
+  audio:null, audioTakeId:null, audioBtn:null, sentences:[], moved:false,
   db:null
 };
 
@@ -684,7 +686,17 @@ function renderPassage(){
   $('pNo').textContent = I[S.lang].pno(S.idx+1,P.length);
   $('pTone').textContent = tone;
   const paras = body.split('\n').filter(x=>x.trim());
-  readText.innerHTML = `<span class="lead">${lead}</span>` + paras.map(x=>`<p>${x}</p>`).join('');
+  const esc = s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  S.sentences=[]; let si=0;
+  const parasHtml = paras.map(par=>{
+    const sents = par.match(/[^.!?]+[.!?]*/g) || [par];
+    const spans = sents.map(sent=>{
+      const idx=si++; S.sentences.push(sent.trim());
+      return `<span class="sent" data-si="${idx}">${esc(sent)}</span>`;
+    }).join('');
+    return `<p>${spans}</p>`;
+  }).join('');
+  readText.innerHTML = `<span class="lead">${lead}</span>` + parasHtml;
   S.wordCount = body.trim().split(/\s+/).filter(Boolean).length;
   S.contentH = readText.scrollHeight || readText.offsetHeight || 0;
   recomputeSpeed();
@@ -1234,35 +1246,62 @@ function updateSpeakUI(on){
   b.querySelector('.li-ic').textContent = on?'⏸':'🔊';
   $('liTx').textContent = on ? t('listening') : t('listen');
 }
-function speakCurrent(){
+function highlightSentence(i){
+  clearSentHighlight();
+  const el=readText.querySelector(`.sent[data-si="${i}"]`);
+  if(el){ el.classList.add('reading'); scrollToSentence(el); }
+}
+function clearSentHighlight(){ const e=readText.querySelector('.sent.reading'); if(e) e.classList.remove('reading'); }
+function scrollToSentence(el){
+  const sr=el.getBoundingClientRect(), st=stage.getBoundingClientRect();
+  const delta=(st.top+st.height*0.5)-(sr.top+sr.height/2);
+  scroller.style.transition='transform .28s ease';
+  setY(getY()+delta);
+}
+function nearestSentenceIndex(){
+  const st=stage.getBoundingClientRect(), target=st.top+st.height*0.5;
+  let best=0,bestD=Infinity;
+  readText.querySelectorAll('.sent').forEach(el=>{
+    const r=el.getBoundingClientRect(), c=r.top+r.height/2, d=Math.abs(c-target);
+    if(d<bestD){ bestD=d; best=parseInt(el.dataset.si); }
+  });
+  return best;
+}
+// Read from a given sentence to the end, highlighting + following each one.
+function speakFrom(startIdx){
   if(!('speechSynthesis' in window)){ toast(t('t_noTTS')); return; }
-  if(S.recording || S.arming){ return; }      // never let TTS bleed into a take
-  if(S.speaking){ stopSpeak(); return; }
-  const p=P[S.idx];
-  const text=(S.lang==='tr'?p.tr:p.en).replace(/\s+/g,' ').trim();
-  const parts = text.match(/[^.!?]+[.!?]*/g) || [text];   // sentence chunks (robust on iOS)
+  if(S.recording || S.arming){ return; }        // never bleed into a take
+  if(S.scrolling) stopScroll();
+  stopSpeak();
+  const parts=S.sentences; if(!parts.length) return;
   const v=pickVoice(S.lang);
-  try{ window.speechSynthesis.cancel(); }catch(e){}
   S.speaking=true; updateSpeakUI(true);
-  let i=0;
+  let i=Math.max(0, Math.min(startIdx, parts.length-1));
   const speakNext=()=>{
     if(!S.speaking){ return; }
-    if(i>=parts.length){ S.speaking=false; updateSpeakUI(false); return; }
-    const seg=parts[i].trim();
+    if(i>=parts.length){ stopSpeak(); return; }
+    const seg=parts[i];
     if(!seg){ i++; return speakNext(); }
+    highlightSentence(i);
     const u=new SpeechSynthesisUtterance(seg);
     u.lang = S.lang==='tr'?'tr-TR':'en-US';
-    if(v) u.voice=v;
-    u.rate=0.9; u.pitch=1; u.volume=1;
+    if(v) u.voice=v; u.rate=0.9; u.pitch=1; u.volume=1;
     u.onend=()=>{ i++; speakNext(); };
     u.onerror=()=>{ i++; speakNext(); };
     window.speechSynthesis.speak(u);
   };
   speakNext();
 }
+// Listen button: toggle; starts from the line currently at the focal band.
+function speakCurrent(){
+  if(S.speaking){ stopSpeak(); return; }
+  if(S.recording || S.arming){ return; }
+  speakFrom(nearestSentenceIndex());
+}
 function stopSpeak(){
   S.speaking=false;
   if('speechSynthesis' in window){ try{ window.speechSynthesis.cancel(); }catch(e){} }
+  clearSentHighlight();
   updateSpeakUI(false);
 }
 
@@ -1284,9 +1323,15 @@ $('speed').oninput=e=>setWpm(parseInt(e.target.value));
 
 // drag the script manually (pause autoscroll while dragging)
 let dragY=null,dragStart=0;
-stage.addEventListener('touchstart',e=>{ dragY=e.touches[0].clientY; dragStart=getY(); if(S.scrolling)stopScroll(); },{passive:true});
-stage.addEventListener('touchmove',e=>{ if(dragY!==null){ const dy=e.touches[0].clientY-dragY; setY(dragStart+dy);} },{passive:true});
+stage.addEventListener('touchstart',e=>{ dragY=e.touches[0].clientY; dragStart=getY(); S.moved=false; scroller.style.transition='none'; if(S.scrolling)stopScroll(); },{passive:true});
+stage.addEventListener('touchmove',e=>{ if(dragY!==null){ const dy=e.touches[0].clientY-dragY; if(Math.abs(dy)>10) S.moved=true; setY(dragStart+dy);} },{passive:true});
 stage.addEventListener('touchend',()=>{ dragY=null; });
+// tap a sentence → read from there (ignored if the touch was a drag)
+readText.addEventListener('click',e=>{
+  const el=e.target.closest('.sent'); if(!el) return;
+  if(S.moved){ S.moved=false; return; }
+  speakFrom(parseInt(el.dataset.si));
+});
 // desktop wheel
 stage.addEventListener('wheel',e=>{ if(S.scrolling)stopScroll(); setY(getY()-e.deltaY); },{passive:true});
 
