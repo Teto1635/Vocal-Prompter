@@ -657,6 +657,7 @@ const S = {
   micId: store.get('micId',''), inputs:[], permGranted:false,
   monitoring:false, monitorOn:false, audioCtx:null, analyser:null, meterRAF:null, meterTarget:'rec', clipped:false, arming:false,
   voices:[], speaking:false,
+  audio:null, audioTakeId:null, audioBtn:null,
   db:null
 };
 
@@ -851,6 +852,7 @@ function showSheet(id){
 }
 function closeSheet(){
   if(openSheet==='sheetMic'){ stopMonitoring(); if(S.monitorOn && !S.recording) startMonitoring('rec'); }
+  if(openSheet==='sheetTakes') stopPlayback();
   $('scrim').classList.remove('on');
   if(openSheet) $(openSheet).classList.remove('on');
   openSheet=null;
@@ -874,7 +876,26 @@ function renderList(){
   });
 }
 
+/* ---------- single shared take player (stops previous on new play/delete) ---------- */
+function stopPlayback(){
+  if(S.audio){ try{ S.audio.pause(); }catch(e){} }
+  if(S.audioBtn){ try{ S.audioBtn.textContent='▶'; }catch(e){} }
+  S.audioTakeId=null; S.audioBtn=null;
+}
+async function playTake(tk, btn){
+  if(S.audioTakeId===tk.id){ stopPlayback(); return; }   // tapping the one that's playing = stop
+  stopPlayback();                                          // stop whatever else was playing
+  const blob=await ensureBlob(tk); if(!blob) return;
+  if(!S.audio){ S.audio=new Audio(); }
+  S.audio.src=tk.url;
+  S.audio.onended=()=>{ if(S.audioBtn) S.audioBtn.textContent='▶'; S.audioTakeId=null; S.audioBtn=null; };
+  S.audioTakeId=tk.id; S.audioBtn=btn; btn.textContent='❚❚';
+  try{ await S.audio.play(); }
+  catch(e){ btn.textContent='▶'; S.audioTakeId=null; S.audioBtn=null; }
+}
+
 function renderTakes(){
+  stopPlayback();
   $('stTitle').textContent=t('takesTitle'); $('stSub').textContent=t('takesSub');
   const el=$('takesList'); el.innerHTML='';
   if(!S.takes.length){ el.innerHTML=`<div class="takes-empty">${t('takesEmpty')}</div>`; return; }
@@ -898,16 +919,11 @@ function renderTakes(){
     const bGood=row.querySelector('[data-act=good]');
     const bDl=row.querySelector('[data-act=dl]');
     const bDel=row.querySelector('[data-act=del]');
-    let audio=null;
-    bPlay.onclick=async()=>{
-      const blob=await ensureBlob(tk); if(!blob) return;
-      if(!audio){ audio=new Audio(tk.url); }
-      if(audio.paused){ audio.play(); bPlay.textContent='❚❚'; audio.onended=()=>bPlay.textContent='▶'; }
-      else { audio.pause(); bPlay.textContent='▶'; }
-    };
+    bPlay.onclick=()=>playTake(tk,bPlay);
     bGood.onclick=()=>{ tk.good=!tk.good; idbPut(tk); renderTakes(); renderMeter(); };
     bDl.onclick=()=>downloadTake(tk);
     bDel.onclick=()=>{
+      if(S.audioTakeId===tk.id) stopPlayback();
       if(tk.url) URL.revokeObjectURL(tk.url);
       idbDelete(tk.id);
       S.takes=S.takes.filter(x=>x.id!==tk.id);
