@@ -287,10 +287,14 @@
   .level.idle .lv-fill{width:0 !important;}
   .lv-ic{font-size:14px;opacity:.85;}
   .lv-track{flex:1;height:11px;border-radius:7px;background:var(--booth-2);position:relative;overflow:hidden;}
-  .lv-track::after{content:'';position:absolute;right:0;top:0;bottom:0;width:9%;
+  /* skala -50..0 dBFS: kirmizi bolge -3 dB ustu, yesil bant -23..-18 dB hedefi */
+  .lv-track::after{content:'';position:absolute;right:0;top:0;bottom:0;width:6%;z-index:2;
     background:linear-gradient(90deg,transparent,rgba(229,87,78,.4));pointer-events:none;}
-  .lv-fill{position:absolute;left:0;top:0;bottom:0;width:0%;border-radius:7px;background:var(--signal);transition:width .04s linear;}
-  .lv-peak{position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--paper);opacity:.85;left:0;transition:left .06s linear;}
+  .lv-track::before{content:'';position:absolute;left:54%;width:10%;top:0;bottom:0;z-index:2;
+    background:rgba(127,200,169,.16);border-left:1px solid rgba(127,200,169,.5);
+    border-right:1px solid rgba(127,200,169,.5);pointer-events:none;}
+  .lv-fill{position:absolute;left:0;top:0;bottom:0;width:0%;border-radius:7px;background:var(--signal);transition:width .04s linear;z-index:1;}
+  .lv-peak{position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--paper);opacity:.85;left:0;transition:left .06s linear;z-index:3;}
   .lv-tag{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;min-width:64px;text-align:right;letter-spacing:.02em;}
 
   /* toggle switch */
@@ -310,6 +314,9 @@
   .warnbox{display:flex;gap:10px;padding:13px 14px;border-radius:13px;background:rgba(229,87,78,.12);
     border:1px solid rgba(229,87,78,.35);margin-top:12px;font-size:12.5px;line-height:1.5;color:var(--paper);}
   .warnbox .wic{font-size:15px;flex:0 0 auto;}
+  .okbox{display:flex;gap:10px;padding:13px 14px;border-radius:13px;background:rgba(127,200,169,.12);
+    border:1px solid rgba(127,200,169,.35);margin-top:12px;font-size:12.5px;line-height:1.5;color:var(--paper);}
+  .okbox .wic{font-size:15px;flex:0 0 auto;}
   .infobox{padding:13px 14px;border-radius:13px;background:var(--booth-2);border:1px solid var(--line);
     margin-top:12px;font-size:12.5px;line-height:1.55;color:var(--muted);}
   .infobox b{color:var(--paper);font-weight:600;}
@@ -336,6 +343,8 @@
   .take .tbtn.del{color:var(--rec);}
   .tclip{display:inline-block;font-size:10px;font-weight:700;color:var(--rec);margin-left:6px;letter-spacing:.03em;
     padding:1px 6px;border-radius:6px;background:rgba(229,87,78,.14);vertical-align:middle;}
+  .tspec{display:inline-block;font-size:10px;font-weight:700;color:var(--lamp);margin-left:6px;letter-spacing:.03em;}
+  .take.offspec{border:1px solid rgba(232,160,75,.4);}
   .take.clipped{border:1px solid rgba(229,87,78,.4);}
   .take.clipped.good{border-color:rgba(127,200,169,.5);}
 
@@ -594,6 +603,28 @@ Object.assign(I.en,{
   s_voice:'Reference voice', s_voice_d:'For "Listen" (this language)', voiceAuto:'Automatic (best)', voiceNone:'No voice for this language'
 });
 
+/* --- seviye hedefi (ElevenLabs egitim sesi speci) + cihaz DSP durumu --- */
+Object.assign(I.tr,{
+  lv_verylow:'ÇOK KISIK', lv_low:'KISIK', lv_target:'HEDEF', lv_hot:'YÜKSEK', lv_veryhot:'ÇOK YÜKSEK',
+  dspOn:'Telefonun mikrofon işlemesi hâlâ açık — seviyeni sen değil telefon ayarlıyor ve klon dengesiz çıkar. Başka bir kaynak dene, ya da Safari sekmesi yerine ana ekrana eklenmiş uygulamadan aç.',
+  dspUnknown:'Bu tarayıcı mikrofon işlemesinin durumunu bildirmiyor. Kapatma isteği gönderildi ama doğrulanamıyor — kısa bir deneme kaydı yap ve sessiz bölümlerde taban gürültüsü tırmanıyor mu bak.',
+  dspOff:'Otomatik seviye, gürültü bastırma ve eko engelleme kapalı. Kayıt ham geliyor.',
+  specBad:'spec dışı',
+  t_specOk:'Spec içinde', t_specLow:'Çok kısık — spec dışı', t_specHigh:'Çok yüksek — spec dışı',
+  micSub:'Kaynağı seç ve seviyene bak. Hedef bant −23…−18 dB RMS, tepe −3 dB üstüne çıkmasın.',
+  micTip:'<b>İpucu:</b> Sessiz oda, ağzına ~15–20 cm <b>sabit</b> mesafe. Etiket <b>HEDEF</b> yazarken konuş — bu −23…−18 dB RMS demek, ElevenLabs eğitim sesi için tam olarak bu bandı istiyor. Kısık kaydedersen klon da kısık ve cılız çıkar, sonradan yükseltmek de pikleri büyütür.'
+});
+Object.assign(I.en,{
+  lv_verylow:'WAY TOO LOW', lv_low:'LOW', lv_target:'TARGET', lv_hot:'HOT', lv_veryhot:'WAY TOO HOT',
+  dspOn:'The phone mic processing is still on — it is setting your level, not you, and the clone will come out inconsistent. Try another source, or open the home-screen app instead of the Safari tab.',
+  dspUnknown:'This browser does not report the state of its mic processing. The request to disable it went through but cannot be verified — record a short test and watch whether the noise floor creeps up during the silent parts.',
+  dspOff:'Auto gain, noise suppression and echo cancellation are off. The recording is coming in raw.',
+  specBad:'off spec',
+  t_specOk:'Within spec', t_specLow:'Too quiet — off spec', t_specHigh:'Too hot — off spec',
+  micSub:'Pick your source and watch your level. Target band is −23…−18 dB RMS, keep peaks under −3 dB.',
+  micTip:'<b>Tip:</b> Quiet room, ~15–20 cm <b>fixed</b> distance from your mouth. Speak while the tag reads <b>TARGET</b> — that is −23…−18 dB RMS, exactly the band ElevenLabs asks for in training audio. Record quiet and the clone comes out quiet and thin, and raising it later only magnifies the peaks.'
+});
+
 /* ---------- passages: cat-psychology, tonal variety, phonetic range ----------
    All kept within a believable narration band (warmth ↔ authority) on purpose:
    ElevenLabs averages the input, so no shouting / extreme prosody. */
@@ -793,7 +824,7 @@ function beginRecNow(){
                : (MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':'');
     S.mediaRecorder = mime ? new MediaRecorder(S.micStream,{mimeType:mime,audioBitsPerSecond:192000})
                            : new MediaRecorder(S.micStream);
-    S.chunks=[]; S.clipped=false;
+    S.chunks=[]; S.clipped=false; S.acc={sum:0,n:0,peak:0};
     S.mediaRecorder.ondataavailable=e=>{ if(e.data.size>0) S.chunks.push(e.data); };
     S.mediaRecorder.onstop=onRecStop;
     S.mediaRecorder.start();
@@ -820,11 +851,17 @@ function onRecStop(){
   const url=URL.createObjectURL(blob);
   const p=P[S.idx];
   const takeNum = S.takes.filter(x=>x.pIdx===S.idx && x.lang===S.lang).length + 1;
+  const a=S.acc||{sum:0,n:0,peak:0};
+  const rmsDb  = a.n ? 20*Math.log10(Math.sqrt(a.sum/a.n)) : -99;
+  const peakDb = dbfs(a.peak);
+  const inSpec = rmsDb>=TARGET_LO && rmsDb<=TARGET_HI && peakDb<=CLIP_DB;
   const take={
     id:'t'+Date.now(), pIdx:S.idx, lang:S.lang,
     tone:S.lang==='tr'?p.toneTR:p.toneEN, ext: type.includes('mp4')?'m4a':'webm',
-    takeNum, url, dur, good:false, clipped:S.clipped, blob, createdAt:Date.now()
+    takeNum, url, dur, good:false, clipped:S.clipped, blob, createdAt:Date.now(),
+    rmsDb:+rmsDb.toFixed(1), peakDb:+peakDb.toFixed(1), inSpec
   };
+  toast(inSpec ? t('t_specOk') : (rmsDb<TARGET_LO ? t('t_specLow') : t('t_specHigh')));
   S.takes.unshift(take);
   idbPut(take);
   $('recTime').textContent='00:00';
@@ -844,7 +881,8 @@ function markGood(){
   toast(take.good?t('t_marked'):t('t_unmarked'));
   renderMeter(); if($('sheetTakes').classList.contains('on')) renderTakes();
 }
-function goodSeconds(){ return S.takes.filter(x=>x.good).reduce((a,b)=>a+b.dur,0); }
+/* spec disi take hedefe sayilmaz; olcumu olmayan eski kayitlar sayilmaya devam eder */
+function goodSeconds(){ return S.takes.filter(x=>x.good && x.inSpec!==false).reduce((a,b)=>a+b.dur,0); }
 async function downloadTake(take){
   const blob=await ensureBlob(take);
   if(!blob){ return; }
@@ -932,11 +970,12 @@ function renderTakes(){
   el.appendChild(exp);
   S.takes.forEach(tk=>{
     const row=document.createElement('div');
-    row.className='take'+(tk.good?' good':'')+(tk.clipped?' clipped':'');
+    row.className='take'+(tk.good?' good':'')+(tk.clipped?' clipped':'')+(tk.inSpec===false?' offspec':'');
+    const lvl = (tk.rmsDb==null) ? '' : ' · '+tk.rmsDb+' dB RMS · '+tk.peakDb+' dB tepe';
     row.innerHTML=`
       <button class="tbtn" data-act="play">▶</button>
-      <div class="tinfo"><div class="tname">P${tk.pIdx+1} · ${tk.tone} · ${tk.lang.toUpperCase()} · ${t('take')} ${tk.takeNum}${tk.clipped?` <span class="tclip">⚠ ${t('clipBadge')}</span>`:''}</div>
-        <div class="tdur">${fmtClock(tk.dur)}</div></div>
+      <div class="tinfo"><div class="tname">P${tk.pIdx+1} · ${tk.tone} · ${tk.lang.toUpperCase()} · ${t('take')} ${tk.takeNum}${tk.clipped?` <span class="tclip">⚠ ${t('clipBadge')}</span>`:''}${tk.inSpec===false&&!tk.clipped?` <span class="tspec">${t('specBad')}</span>`:''}</div>
+        <div class="tdur">${fmtClock(tk.dur)}${lvl}</div></div>
       <button class="tbtn ${tk.good?'on':''}" data-act="good">✓</button>
       <button class="tbtn" data-act="dl">⤓</button>
       <button class="tbtn del" data-act="del">🗑</button>`;
@@ -1077,6 +1116,11 @@ async function idbLoadAll(){
 }
 
 /* ---------- live level meter (Web Audio) ---------- */
+/* ElevenLabs egitim sesi hedefi: RMS -23..-18 dBFS, true peak < -3 dBFS */
+const TARGET_LO=-23, TARGET_HI=-18, CLIP_DB=-3;
+const dbfs=v=>20*Math.log10(v+1e-9);
+const meterPos=db=>Math.max(0,Math.min(1,(db+50)/50));   // -50..0 dBFS -> 0..1
+
 function meterEls(){ return S.meterTarget==='mon'
   ? {fill:$('monFill'),peak:$('monPeak'),tag:$('monTag')}
   : {fill:$('lvFill'),peak:$('lvPeak'),tag:$('lvTag')}; }
@@ -1095,19 +1139,29 @@ function startMeter(stream,target){
       S.analyser.getFloatTimeDomainData(buf);
       let sum=0,peak=0; for(let i=0;i<buf.length;i++){ const a=Math.abs(buf[i]); sum+=buf[i]*buf[i]; if(a>peak)peak=a; }
       const rms=Math.sqrt(sum/buf.length);
-      const level=Math.min(1, rms*4);
+      const rmsDb=dbfs(rms), peakDb=dbfs(peak);
+      const level=meterPos(rmsDb);
       peakHold=Math.max(peak, peakHold*0.90);
-      if(S.recording && peak>=0.985) S.clipped=true;
+      if(S.recording && S.acc){
+        if(peakDb>=-0.5) S.clipped=true;          // gercek clipping
+        // -3 dB speci take bitiminde inSpec ile denetleniyor
+        if(rms>0.003){ S.acc.sum+=rms*rms; S.acc.n++; }   // ~-50 dBFS konusma kapisi
+        if(peak>S.acc.peak) S.acc.peak=peak;
+      }
       const e=meterEls();
       if(e.fill){
+        const holdDb=dbfs(peakHold);
         e.fill.style.width=Math.round(level*100)+'%';
-        e.peak.style.left=Math.min(100,peakHold*100)+'%';
+        e.peak.style.left=Math.round(meterPos(holdDb)*100)+'%';
         let c,tag;
-        if(peakHold>=0.985){ c='var(--rec)'; tag=t('lv_clip'); }
-        else if(level<0.05){ c='var(--muted)'; tag=t('lv_low'); }
-        else if(level>0.8){ c='var(--lamp)'; tag=t('lv_hot'); }
-        else { c='var(--signal)'; tag=t('lv_good'); }
-        e.fill.style.background=c; e.tag.textContent=tag;
+        if(holdDb>=-0.5)           { c='var(--rec)';    tag=t('lv_clip'); }
+        else if(rmsDb<-30)         { c='var(--muted)';  tag=t('lv_verylow'); }
+        else if(rmsDb<TARGET_LO)   { c='var(--muted)';  tag=t('lv_low'); }
+        else if(rmsDb<=TARGET_HI)  { c='var(--signal)'; tag=t('lv_target'); }
+        else if(rmsDb<=-12)        { c='var(--lamp)';   tag=t('lv_hot'); }
+        else                       { c='var(--rec)';    tag=t('lv_veryhot'); }
+        e.fill.style.background=c;
+        e.tag.textContent = rmsDb>-60 ? tag+' · '+rmsDb.toFixed(0)+' dB' : tag;
       }
       S.meterRAF=requestAnimationFrame(loop);
     };
@@ -1134,12 +1188,30 @@ async function getMicStream(){
   }
   S.micStream=await navigator.mediaDevices.getUserMedia(micConstraints());
   S.permGranted=true;
+  checkDsp();
   return S.micStream;
+}
+/* Istemek almak degil: iOS Safari constraint'leri sessizce yok sayabiliyor.
+   getSettings() gercekte uygulanani doner; bildirmeyen tarayicida deger undefined gelir. */
+const DSP_KEYS=['autoGainControl','noiseSuppression','echoCancellation'];
+function checkDsp(){
+  let st={};
+  try{
+    const tr=S.micStream && S.micStream.getAudioTracks()[0];
+    if(tr && tr.getSettings) st=tr.getSettings()||{};
+  }catch(e){}
+  S.dsp={
+    on:  DSP_KEYS.filter(k=>st[k]===true),
+    unk: DSP_KEYS.filter(k=>st[k]===undefined),
+    settings:st
+  };
+  if(openSheet==='sheetMic') renderMicWarn();
 }
 function stopMicStream(){ if(S.micStream){ S.micStream.getTracks().forEach(t=>t.stop()); S.micStream=null; } }
 async function refreshDevices(){
   try{
-    if(!S.permGranted){ const s=await navigator.mediaDevices.getUserMedia({audio:true}); s.getTracks().forEach(t=>t.stop()); S.permGranted=true; }
+    /* iOS: ilk getUserMedia cagrisi ses oturumunu sabitliyor — yoklamayi da constraint'li yap */
+    if(!S.permGranted){ const s=await navigator.mediaDevices.getUserMedia(micConstraints()); s.getTracks().forEach(t=>t.stop()); S.permGranted=true; }
     const devs=await navigator.mediaDevices.enumerateDevices();
     S.inputs=devs.filter(d=>d.kind==='audioinput');
     if((!S.micId || !S.inputs.some(d=>d.deviceId===S.micId)) && S.inputs[0]){ S.micId=S.inputs[0].deviceId; store.set('micId',S.micId); }
@@ -1166,8 +1238,19 @@ function renderMic(){
 }
 function renderMicWarn(){
   const cur=S.inputs.find(d=>d.deviceId===S.micId);
-  $('micWarnBox').innerHTML=(cur && isWireless(cur.label))
-    ? `<div class="warnbox"><span class="wic">⚠️</span><span>${t('micWarn')}</span></div>` : '';
+  let html='';
+  if(cur && isWireless(cur.label))
+    html+=`<div class="warnbox"><span class="wic">⚠️</span><span>${t('micWarn')}</span></div>`;
+  const d=S.dsp;
+  if(d){
+    if(d.on.length)
+      html+=`<div class="warnbox"><span class="wic">⚠️</span><span>${t('dspOn')}<br><b>${d.on.join(', ')}</b></span></div>`;
+    else if(d.unk.length===DSP_KEYS.length)
+      html+=`<div class="warnbox"><span class="wic">ℹ️</span><span>${t('dspUnknown')}</span></div>`;
+    else
+      html+=`<div class="okbox"><span class="wic">✓</span><span>${t('dspOff')}</span></div>`;
+  }
+  $('micWarnBox').innerHTML=html;
 }
 
 /* ---------- take helpers ---------- */
