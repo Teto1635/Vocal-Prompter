@@ -1,5 +1,5 @@
 /* Klon Stüdyo — service worker (offline-first) */
-const CACHE = 'klon-studio-v5';
+const CACHE = 'klon-studio-v6';
 const ASSETS = [
   './',
   './index.html',
