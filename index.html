@@ -229,6 +229,7 @@
 
   /* settings rows */
   .srow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-bottom:1px solid var(--line);}
+  .srow.col{flex-direction:column;align-items:stretch;}
   .srow:last-child{border-bottom:none;}
   .srow .sk{font-size:14px;font-weight:500;}
   .srow .skd{font-size:11.5px;color:var(--muted);margin-top:2px;}
@@ -568,7 +569,8 @@ Object.assign(I.tr,{
   wpmUnit:'k/dk',
   s_wpmMin:'En düşük tempo', s_wpmMax:'En yüksek tempo', s_wpm_d:'kelime/dakika (k/dk)',
   t_wpmRange:'Tempo aralığı güncellendi',
-  listen:'Dinle', listening:'Durdur', t_noTTS:'Bu cihazda sesli okuma yok'
+  listen:'Dinle', listening:'Durdur', t_noTTS:'Bu cihazda sesli okuma yok',
+  s_voice:'Referans sesi', s_voice_d:'"Dinle" için (bu dil)', voiceAuto:'Otomatik (en iyi)', voiceNone:'Bu dil için ses yok'
 });
 Object.assign(I.en,{
   lv_tapOn:'LEVEL · TAP', lv_off:'OFF', clipBadge:'clipped',
@@ -577,7 +579,8 @@ Object.assign(I.en,{
   wpmUnit:'wpm',
   s_wpmMin:'Min pace', s_wpmMax:'Max pace', s_wpm_d:'words per minute (wpm)',
   t_wpmRange:'Pace range updated',
-  listen:'Listen', listening:'Stop', t_noTTS:'Text-to-speech not available on this device'
+  listen:'Listen', listening:'Stop', t_noTTS:'Text-to-speech not available on this device',
+  s_voice:'Reference voice', s_voice_d:'For "Listen" (this language)', voiceAuto:'Automatic (best)', voiceNone:'No voice for this language'
 });
 
 /* ---------- passages: cat-psychology, tonal variety, phonetic range ----------
@@ -656,7 +659,7 @@ const S = {
   // mic + metering
   micId: store.get('micId',''), inputs:[], permGranted:false,
   monitoring:false, monitorOn:false, audioCtx:null, analyser:null, meterRAF:null, meterTarget:'rec', clipped:false, arming:false,
-  voices:[], speaking:false,
+  voices:[], speaking:false, voiceTR: store.get('voiceTR',''), voiceEN: store.get('voiceEN',''),
   audio:null, audioTakeId:null, audioBtn:null,
   db:null
 };
@@ -952,6 +955,8 @@ function renderSettings(){
      <div class="stepper" id="stepTarget"><button data-d="-5">−</button><span class="sv">${S.target} dk</span><button data-d="5">+</button></div></div>
    <div class="srow"><div><div class="sk">${L.s_mirror}</div><div class="skd">${L.s_mirror_d}</div></div>
      <div class="seg" id="segMirror"><button data-v="off" class="${!S.mirror?'on':''}">${L.s_off}</button><button data-v="on" class="${S.mirror?'on':''}">${L.s_on}</button></div></div>
+   <div class="srow col"><div><div class="sk">${L.s_voice}</div><div class="skd">${L.s_voice_d}</div></div>
+     <div class="selwrap" style="margin-top:10px"><select id="voiceSel"></select></div></div>
    <div class="srow" id="rowMic" role="button" style="cursor:pointer"><div><div class="sk">${L.s_mic}</div><div class="skd">${L.s_mic_d}</div></div><span style="color:var(--muted);font-size:20px;line-height:1">›</span></div>
    <div class="srow"><div><div class="sk">${L.s_reset}</div><div class="skd">${L.s_reset_d}</div></div>
      <button class="tbtn" id="btnReset" style="width:auto;padding:0 14px;height:38px;border-radius:11px;">↺</button></div>`;
@@ -964,6 +969,18 @@ function renderSettings(){
   body.querySelectorAll('#stepWpmMin button').forEach(b=>b.onclick=()=>{ S.wpmMin=Math.max(40,Math.min(S.wpmMax-5,S.wpmMin+parseInt(b.dataset.d))); store.set('wpmMin',S.wpmMin); applyWpmRange(); toast(t('t_wpmRange')); renderSettings(); });
   body.querySelectorAll('#stepWpmMax button').forEach(b=>b.onclick=()=>{ S.wpmMax=Math.min(240,Math.max(S.wpmMin+5,S.wpmMax+parseInt(b.dataset.d))); store.set('wpmMax',S.wpmMax); applyWpmRange(); toast(t('t_wpmRange')); renderSettings(); });
   $('rowMic').onclick=()=>showSheet('sheetMic');
+  const vsel=$('voiceSel');
+  if(vsel){
+    const vl=currentVoiceList();
+    const chosen = S.lang==='tr'?S.voiceTR:S.voiceEN;
+    if(!vl.length){ vsel.innerHTML=`<option>${t('voiceNone')}</option>`; vsel.disabled=true; }
+    else{
+      vsel.disabled=false;
+      vsel.innerHTML=`<option value="">${t('voiceAuto')}</option>`+
+        vl.map(v=>`<option value="${v.voiceURI}" ${v.voiceURI===chosen?'selected':''}>${v.name}${v.localService?'':' · '+(S.lang==='tr'?'çevrimiçi':'online')}</option>`).join('');
+      vsel.onchange=()=>{ const val=vsel.value; if(S.lang==='tr'){ S.voiceTR=val; store.set('voiceTR',val); } else { S.voiceEN=val; store.set('voiceEN',val); } stopSpeak(); };
+    }
+  }
   $('btnReset').onclick=()=>{ S.takes.forEach(x=>{ if(x.url) URL.revokeObjectURL(x.url); idbDelete(x.id); }); S.takes=[]; renderMeter(); renderSettings(); toast(t('t_reset')); };
 }
 
@@ -997,6 +1014,7 @@ function applyLang(){
   renderPassage(); renderMeter();
   if(typeof updateMonitorUI==='function') updateMonitorUI();
   if(typeof updateSpeakUI==='function') updateSpeakUI(S.speaking);
+  if(openSheet==='sheetSettings') renderSettings();
 }
 
 /* ---------- speed ---------- */
@@ -1191,16 +1209,23 @@ function updateMonitorUI(){
 }
 
 /* ---------- reference reading (on-device TTS) ---------- */
-function loadVoices(){ try{ S.voices = window.speechSynthesis.getVoices() || []; }catch(e){ S.voices=[]; } }
+function loadVoices(){ try{ S.voices = window.speechSynthesis.getVoices() || []; }catch(e){ S.voices=[]; } if(openSheet==='sheetSettings') renderSettings(); }
 if('speechSynthesis' in window){ loadVoices(); try{ window.speechSynthesis.onvoiceschanged=loadVoices; }catch(e){} }
+function currentVoiceList(){
+  const list = (S.voices && S.voices.length) ? S.voices : (('speechSynthesis' in window)?window.speechSynthesis.getVoices():[]);
+  const want = S.lang==='tr'?'tr':'en';
+  return list.filter(v=>v.lang && v.lang.toLowerCase().startsWith(want));
+}
 function pickVoice(lang){
   const list = (S.voices && S.voices.length) ? S.voices : (('speechSynthesis' in window)?window.speechSynthesis.getVoices():[]);
   const want = lang==='tr'?'tr':'en';
   const matches = list.filter(v=>v.lang && v.lang.toLowerCase().startsWith(want));
   if(!matches.length) return null;
-  return matches.find(v=>/samantha|aaron|siri|enhanced|premium|neural|yelda/i.test(v.name))
+  const chosen = lang==='tr'?S.voiceTR:S.voiceEN;   // user's explicit pick wins
+  if(chosen){ const m=matches.find(v=>v.voiceURI===chosen); if(m) return m; }
+  return matches.find(v=>/enhanced|premium|neural|siri/i.test(v.name))
+      || matches.find(v=>/samantha|aaron|yelda|karen|daniel/i.test(v.name))
       || matches.find(v=>v.localService)
-      || matches.find(v=>/en-US|tr-TR/i.test(v.lang))
       || matches[0];
 }
 function updateSpeakUI(on){
