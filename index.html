@@ -101,6 +101,7 @@
   body.face-sans .read{font-family:'Space Grotesk',system-ui,sans-serif;font-weight:400;}
   .read p{margin:0 0 .9em;}
   .read .sent{cursor:pointer;transition:color .15s;border-radius:4px;}
+  .read .sent.selected{background:rgba(232,160,75,.22);box-shadow:0 0 0 2px rgba(232,160,75,.22);-webkit-box-decoration-break:clone;box-decoration-break:clone;}
   .read .sent.reading{color:var(--lamp);}
   .read .lead{
     display:block;font-family:'Space Grotesk',sans-serif;font-size:12px;letter-spacing:.16em;
@@ -662,7 +663,7 @@ const S = {
   micId: store.get('micId',''), inputs:[], permGranted:false,
   monitoring:false, monitorOn:false, audioCtx:null, analyser:null, meterRAF:null, meterTarget:'rec', clipped:false, arming:false,
   voices:[], speaking:false, voiceTR: store.get('voiceTR',''), voiceEN: store.get('voiceEN',''),
-  audio:null, audioTakeId:null, audioBtn:null, sentences:[], moved:false,
+  audio:null, audioTakeId:null, audioBtn:null, sentences:[], moved:false, selIdx:null,
   db:null
 };
 
@@ -699,6 +700,7 @@ function renderPassage(){
   readText.innerHTML = `<span class="lead">${lead}</span>` + parasHtml;
   S.wordCount = body.trim().split(/\s+/).filter(Boolean).length;
   S.contentH = readText.scrollHeight || readText.offsetHeight || 0;
+  S.selIdx = null;
   recomputeSpeed();
   if(typeof stopSpeak==='function') stopSpeak();
   resetScroll();
@@ -774,7 +776,7 @@ async function toggleRec(){
     startMeter(S.micStream,'rec');
     updateMonitorUI();
   }catch(e){ S.arming=false; toast(t('t_micFail')); return; }
-  resetScroll();
+  if(S.selIdx!=null) positionAtStart(S.selIdx); else resetScroll();
   countdown(()=>{ S.arming=false; beginRecNow(); startScroll(); });
 }
 function beginRecNow(){
@@ -1267,6 +1269,23 @@ function nearestSentenceIndex(){
   });
   return best;
 }
+// persistent selection = where recording will start from
+function setSelected(idx){
+  S.selIdx=idx;
+  readText.querySelectorAll('.sent.selected').forEach(e=>e.classList.remove('selected'));
+  const el=readText.querySelector(`.sent[data-si="${idx}"]`);
+  if(el) el.classList.add('selected');
+}
+// place the selected sentence at the reading-start band, so scroll begins there
+function positionAtStart(idx){
+  const el=readText.querySelector(`.sent[data-si="${idx}"]`);
+  if(!el){ resetScroll(); return; }
+  const sr=el.getBoundingClientRect(), st=stage.getBoundingClientRect();
+  const delta=(st.top+st.height*0.42)-sr.top;
+  scroller.style.transition='transform .3s ease';
+  setY(getY()+delta);
+  setTimeout(()=>{ scroller.style.transition='none'; },320);
+}
 // Read from a given sentence to the end, highlighting + following each one.
 function speakFrom(startIdx){
   if(!('speechSynthesis' in window)){ toast(t('t_noTTS')); return; }
@@ -1330,7 +1349,9 @@ stage.addEventListener('touchend',()=>{ dragY=null; });
 readText.addEventListener('click',e=>{
   const el=e.target.closest('.sent'); if(!el) return;
   if(S.moved){ S.moved=false; return; }
-  speakFrom(parseInt(el.dataset.si));
+  const idx=parseInt(el.dataset.si);
+  setSelected(idx);
+  speakFrom(idx);
 });
 // desktop wheel
 stage.addEventListener('wheel',e=>{ if(S.scrolling)stopScroll(); setY(getY()-e.deltaY); },{passive:true});
