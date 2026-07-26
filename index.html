@@ -137,8 +137,14 @@
   body.lamp-on .listen-btn{background:rgba(237,226,209,.72);}
   .listen-btn:active{transform:scale(.94);}
   .listen-btn .li-ic{font-size:14px;line-height:1;}
+  .listen-btn .li-sw{width:28px;height:16px;border-radius:9px;background:var(--booth-2);border:1px solid var(--line-2);
+    position:relative;flex:0 0 auto;transition:background .2s;margin-left:2px;}
+  .listen-btn .li-knob{position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;
+    background:var(--muted);transition:left .2s,background .2s;}
+  .listen-btn.on .li-sw{background:rgba(22,17,14,.35);border-color:transparent;}
+  .listen-btn.on .li-knob{left:14px;background:var(--void);}
+  .listen-btn.speaking .li-ic{animation:pulse 1.1s infinite;}
   .listen-btn.on{background:var(--lamp);border-color:transparent;color:var(--void);}
-  .listen-btn.on .li-ic{animation:pulse 1.1s infinite;}
 
   .empty-hint{
     position:absolute;inset:0;display:grid;place-items:center;z-index:4;text-align:center;
@@ -359,7 +365,7 @@
     <div class="focal bot"></div>
     <div class="scroller" id="scroller"><div class="read" id="readText"></div></div>
     <div class="lamp-mask"></div>
-    <button class="listen-btn" id="listenBtn" aria-label="Dinle"><span class="li-ic">🔊</span><span class="li-tx" id="liTx">Dinle</span></button>
+    <button class="listen-btn" id="listenBtn" aria-label="Dinle"><span class="li-ic">🔊</span><span class="li-tx" id="liTx">Dinle</span><span class="li-sw" id="liSw"><span class="li-knob"></span></span></button>
     <div class="empty-hint" id="emptyHint"></div>
   </div>
 
@@ -573,6 +579,7 @@ Object.assign(I.tr,{
   s_wpmMin:'En düşük tempo', s_wpmMax:'En yüksek tempo', s_wpm_d:'kelime/dakika (k/dk)',
   t_wpmRange:'Tempo aralığı güncellendi',
   listen:'Dinle', listening:'Durdur', t_noTTS:'Bu cihazda sesli okuma yok',
+  t_listenOn:'Dinleme açık — dokunduğun cümle okunur', t_listenOff:'Dinleme kapalı — dokunmak sadece seçer',
   s_voice:'Referans sesi', s_voice_d:'"Dinle" için (bu dil)', voiceAuto:'Otomatik (en iyi)', voiceNone:'Bu dil için ses yok'
 });
 Object.assign(I.en,{
@@ -583,6 +590,7 @@ Object.assign(I.en,{
   s_wpmMin:'Min pace', s_wpmMax:'Max pace', s_wpm_d:'words per minute (wpm)',
   t_wpmRange:'Pace range updated',
   listen:'Listen', listening:'Stop', t_noTTS:'Text-to-speech not available on this device',
+  t_listenOn:'Listen on — tapping a sentence reads it', t_listenOff:'Listen off — tapping only selects',
   s_voice:'Reference voice', s_voice_d:'For "Listen" (this language)', voiceAuto:'Automatic (best)', voiceNone:'No voice for this language'
 });
 
@@ -662,7 +670,7 @@ const S = {
   // mic + metering
   micId: store.get('micId',''), inputs:[], permGranted:false,
   monitoring:false, monitorOn:false, audioCtx:null, analyser:null, meterRAF:null, meterTarget:'rec', clipped:false, arming:false,
-  voices:[], speaking:false, voiceTR: store.get('voiceTR',''), voiceEN: store.get('voiceEN',''),
+  voices:[], speaking:false, voiceTR: store.get('voiceTR',''), voiceEN: store.get('voiceEN',''), listenMode: store.get('listenMode',false),
   audio:null, audioTakeId:null, audioBtn:null, sentences:[], moved:false, selIdx:null,
   db:null
 };
@@ -1027,7 +1035,7 @@ function applyLang(){
   $('spLbl').textContent=t('spLbl');
   renderPassage(); renderMeter();
   if(typeof updateMonitorUI==='function') updateMonitorUI();
-  if(typeof updateSpeakUI==='function') updateSpeakUI(S.speaking);
+  if(typeof updateSpeakUI==='function') updateSpeakUI();
   if(openSheet==='sheetSettings') renderSettings();
 }
 
@@ -1242,11 +1250,19 @@ function pickVoice(lang){
       || matches.find(v=>v.localService)
       || matches[0];
 }
-function updateSpeakUI(on){
+function updateSpeakUI(){
   const b=$('listenBtn'); if(!b) return;
-  b.classList.toggle('on',on);
-  b.querySelector('.li-ic').textContent = on?'⏸':'🔊';
-  $('liTx').textContent = on ? t('listening') : t('listen');
+  b.classList.toggle('on',S.listenMode);
+  b.classList.toggle('speaking',S.speaking);
+  b.querySelector('.li-ic').textContent = S.speaking?'⏸':'🔊';
+  $('liTx').textContent = t('listen');
+}
+// The button is a MODE switch: off = tapping a sentence only selects it (no audio).
+function toggleListenMode(){
+  if(S.speaking){ stopSpeak(); return; }        // if it's talking, first tap just stops it
+  S.listenMode=!S.listenMode; store.set('listenMode',S.listenMode);
+  updateSpeakUI();
+  toast(S.listenMode?t('t_listenOn'):t('t_listenOff'));
 }
 function highlightSentence(i){
   clearSentHighlight();
@@ -1294,7 +1310,7 @@ function speakFrom(startIdx){
   stopSpeak();
   const parts=S.sentences; if(!parts.length) return;
   const v=pickVoice(S.lang);
-  S.speaking=true; updateSpeakUI(true);
+  S.speaking=true; updateSpeakUI();
   let i=Math.max(0, Math.min(startIdx, parts.length-1));
   const speakNext=()=>{
     if(!S.speaking){ return; }
@@ -1311,17 +1327,11 @@ function speakFrom(startIdx){
   };
   speakNext();
 }
-// Listen button: toggle; starts from the line currently at the focal band.
-function speakCurrent(){
-  if(S.speaking){ stopSpeak(); return; }
-  if(S.recording || S.arming){ return; }
-  speakFrom(nearestSentenceIndex());
-}
 function stopSpeak(){
   S.speaking=false;
   if('speechSynthesis' in window){ try{ window.speechSynthesis.cancel(); }catch(e){} }
   clearSentHighlight();
-  updateSpeakUI(false);
+  updateSpeakUI();
 }
 
 /* ---------- wire up ---------- */
@@ -1333,7 +1343,7 @@ $('btnPlay').onclick=playWithCountdown;
 $('btnRec').onclick=toggleRec;
 $('btnGood').onclick=markGood;
 $('lvToggle').onclick=toggleMonitor;
-$('listenBtn').onclick=speakCurrent;
+$('listenBtn').onclick=toggleListenMode;
 $('btnPrev').onclick=()=>{ if(S.idx>0){S.idx--;renderPassage();} };
 $('btnNext').onclick=()=>{ if(S.idx<P.length-1){S.idx++;renderPassage();} };
 $('langTR').onclick=()=>{ S.lang='tr'; store.set('lang','tr'); applyLang(); };
@@ -1351,7 +1361,8 @@ readText.addEventListener('click',e=>{
   if(S.moved){ S.moved=false; return; }
   const idx=parseInt(el.dataset.si);
   setSelected(idx);
-  speakFrom(idx);
+  if(S.listenMode) speakFrom(idx);   // off = select only, no audio
+  else if(S.speaking) stopSpeak();
 });
 // desktop wheel
 stage.addEventListener('wheel',e=>{ if(S.scrolling)stopScroll(); setY(getY()-e.deltaY); },{passive:true});
